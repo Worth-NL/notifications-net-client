@@ -64,14 +64,15 @@ namespace Notify.Client
             if (nvc.Count == 0) return "";
 
             IEnumerable<string> segments = from key in nvc.AllKeys
-                                           from value in nvc.GetValues(key)
-                                           select string.Format("{0}={1}",
-                                           WebUtility.UrlEncode(key),
-                                           WebUtility.UrlEncode(value));
+                from value in nvc.GetValues(key)
+                select string.Format("{0}={1}",
+                    WebUtility.UrlEncode(key),
+                    WebUtility.UrlEncode(value));
             return "?" + string.Join("&", segments);
         }
 
-        public async Task<NotificationList> GetNotificationsAsync(string templateType = "", string status = "", string reference = "",
+        public async Task<NotificationList> GetNotificationsAsync(string templateType = "", string status = "",
+            string reference = "",
             string olderThanId = "", bool includeSpreadsheetUploads = false)
         {
             var query = new NameValueCollection();
@@ -171,22 +172,26 @@ namespace Notify.Client
             return JsonConvert.DeserializeObject<EmailNotificationResponse>(response);
         }
 
-        public async Task<LetterNotificationResponse> SendLetterAsync(string templateId, Dictionary<string, dynamic> personalisation,
-            string clientReference = null)
+        public async Task<LetterNotificationResponse> SendLetterAsync(string templateId,
+            Dictionary<string, dynamic> personalisation,
+            string clientReference = null, 
+            Dictionary<string, dynamic> extras = null)
         {
-            var o = CreateRequestParams(templateId, personalisation, clientReference);
+            var o = CreateRequestParams(templateId, personalisation, clientReference, extras);
 
-            var response = await this.POST(SEND_LETTER_NOTIFICATION_URL, o.ToString(Formatting.None)).ConfigureAwait(false);
+            var response = await this.POST(SEND_LETTER_NOTIFICATION_URL, o.ToString(Formatting.None))
+                .ConfigureAwait(false);
 
             return JsonConvert.DeserializeObject<LetterNotificationResponse>(response);
         }
 
-        public async Task<LetterNotificationResponse> SendPrecompiledLetterAsync(string clientReference, byte[] pdfContents, string postage = null)
+        public async Task<LetterNotificationResponse> SendPrecompiledLetterAsync(string clientReference,
+            byte[] pdfContents, string postage = null)
         {
             var requestParams = new JObject
             {
-                {"reference", clientReference},
-                {"content", System.Convert.ToBase64String(pdfContents)}
+                { "reference", clientReference },
+                { "content", System.Convert.ToBase64String(pdfContents) }
             };
 
             if (postage != null)
@@ -194,7 +199,8 @@ namespace Notify.Client
                 requestParams.Add(new JProperty("postage", postage));
             }
 
-            var response = await this.POST(SEND_LETTER_NOTIFICATION_URL, requestParams.ToString(Formatting.None)).ConfigureAwait(false);
+            var response = await this.POST(SEND_LETTER_NOTIFICATION_URL, requestParams.ToString(Formatting.None))
+                .ConfigureAwait(false);
 
             return JsonConvert.DeserializeObject<LetterNotificationResponse>(response);
         }
@@ -221,7 +227,7 @@ namespace Notify.Client
 
             var o = new JObject
             {
-                {"personalisation", JObject.FromObject(personalisation)}
+                { "personalisation", JObject.FromObject(personalisation) }
             };
 
             var response = await this.POST(url, o.ToString(Formatting.None)).ConfigureAwait(false);
@@ -245,18 +251,20 @@ namespace Notify.Client
             return response;
         }
 
-        public static JObject PrepareUpload(byte[] documentContents, string filename, bool confirmEmailBeforeDownload, string retentionPeriod)
+        public static JObject PrepareUpload(byte[] documentContents, string filename, bool confirmEmailBeforeDownload,
+            string retentionPeriod)
         {
             if (documentContents.Length > 2 * 1024 * 1024)
             {
                 throw new System.ArgumentException("File is larger than 2MB");
             }
+
             return new JObject
             {
-                {"file", System.Convert.ToBase64String(documentContents)},
-                {"filename", filename},
-                {"confirm_email_before_download", confirmEmailBeforeDownload},
-                {"retention_period", retentionPeriod}
+                { "file", System.Convert.ToBase64String(documentContents) },
+                { "filename", filename },
+                { "confirm_email_before_download", confirmEmailBeforeDownload },
+                { "retention_period", retentionPeriod }
             };
         }
 
@@ -266,12 +274,13 @@ namespace Notify.Client
             {
                 throw new System.ArgumentException("File is larger than 2MB");
             }
+
             return new JObject
             {
-                {"file", System.Convert.ToBase64String(documentContents)},
-                {"filename", filename},
-                {"confirm_email_before_download", null},
-                {"retention_period", null}
+                { "file", System.Convert.ToBase64String(documentContents) },
+                { "filename", filename },
+                { "confirm_email_before_download", null },
+                { "retention_period", null }
             };
         }
 
@@ -281,12 +290,13 @@ namespace Notify.Client
             {
                 throw new System.ArgumentException("File is larger than 2MB");
             }
+
             return new JObject
             {
-                {"file", System.Convert.ToBase64String(documentContents)},
-                {"filename", null},
-                {"confirm_email_before_download", null},
-                {"retention_period", null}
+                { "file", System.Convert.ToBase64String(documentContents) },
+                { "filename", null },
+                { "confirm_email_before_download", null },
+                { "retention_period", null }
             };
         }
 
@@ -305,8 +315,10 @@ namespace Notify.Client
             }
         }
 
-        private static JObject CreateRequestParams(string templateId, Dictionary<string, dynamic> personalisation = null,
-            string clientReference = null)
+        private static JObject CreateRequestParams(string templateId,
+            Dictionary<string, dynamic> personalisation = null,
+            string clientReference = null,
+            Dictionary<string, dynamic> extras = null)
         {
             var personalisationJson = new JObject();
 
@@ -317,14 +329,22 @@ namespace Notify.Client
 
             var o = new JObject
             {
-                {"template_id", templateId},
-                {"personalisation", personalisationJson}
+                { "template_id", templateId },
+                { "personalisation", personalisationJson }
             };
 
             if (clientReference != null)
             {
                 o.Add("reference", clientReference);
             }
+
+            if (extras == null)
+            {
+                return o;
+            }
+
+            var extrasJson = JObject.FromObject(extras);
+            o.Add("extras", extrasJson);
 
             return o;
         }
@@ -346,7 +366,8 @@ namespace Notify.Client
             }
         }
 
-        public TemplatePreviewResponse GenerateTemplatePreview(string templateId, Dictionary<string, dynamic> personalisation = null)
+        public TemplatePreviewResponse GenerateTemplatePreview(string templateId,
+            Dictionary<string, dynamic> personalisation = null)
         {
             try
             {
@@ -382,11 +403,13 @@ namespace Notify.Client
             }
         }
 
-        public NotificationList GetNotifications(string templateType = "", string status = "", string reference = "", string olderThanId = "", bool includeSpreadsheetUploads = false)
+        public NotificationList GetNotifications(string templateType = "", string status = "", string reference = "",
+            string olderThanId = "", bool includeSpreadsheetUploads = false)
         {
             try
             {
-                return GetNotificationsAsync(templateType, status, reference, olderThanId, includeSpreadsheetUploads).Result;
+                return GetNotificationsAsync(templateType, status, reference, olderThanId, includeSpreadsheetUploads)
+                    .Result;
             }
             catch (AggregateException ex)
             {
@@ -430,7 +453,9 @@ namespace Notify.Client
             }
         }
 
-        public SmsNotificationResponse SendSms(string mobileNumber, string templateId, Dictionary<string, dynamic> personalisation = null, string clientReference = null, string smsSenderId = null)
+        public SmsNotificationResponse SendSms(string mobileNumber, string templateId,
+            Dictionary<string, dynamic> personalisation = null, string clientReference = null,
+            string smsSenderId = null)
         {
             try
             {
@@ -442,11 +467,14 @@ namespace Notify.Client
             }
         }
 
-        public EmailNotificationResponse SendEmail(string emailAddress, string templateId, Dictionary<string, dynamic> personalisation = null, string clientReference = null, string emailReplyToId = null)
+        public EmailNotificationResponse SendEmail(string emailAddress, string templateId,
+            Dictionary<string, dynamic> personalisation = null, string clientReference = null,
+            string emailReplyToId = null)
         {
             try
             {
-                return SendEmailAsync(emailAddress, templateId, personalisation, clientReference, emailReplyToId).Result;
+                return SendEmailAsync(emailAddress, templateId, personalisation, clientReference, emailReplyToId)
+                    .Result;
             }
             catch (AggregateException ex)
             {
@@ -454,11 +482,14 @@ namespace Notify.Client
             }
         }
 
-        public LetterNotificationResponse SendLetter(string templateId, Dictionary<string, dynamic> personalisation, string clientReference = null)
+        public LetterNotificationResponse SendLetter(string templateId, 
+            Dictionary<string, dynamic> personalisation,
+            string clientReference = null, 
+            Dictionary<string, dynamic> extras = null)
         {
             try
             {
-                return SendLetterAsync(templateId, personalisation, clientReference).Result;
+                return SendLetterAsync(templateId, personalisation, clientReference, extras).Result;
             }
             catch (AggregateException ex)
             {
@@ -466,7 +497,8 @@ namespace Notify.Client
             }
         }
 
-        public LetterNotificationResponse SendPrecompiledLetter(string clientReference, byte[] pdfContents, string postage = null)
+        public LetterNotificationResponse SendPrecompiledLetter(string clientReference, byte[] pdfContents,
+            string postage = null)
         {
             try
             {
