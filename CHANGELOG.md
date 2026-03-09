@@ -1,3 +1,7 @@
+## [7.0.1-custom] - 2026-03-09
+
+* Add `extras` to `SendLetter` method so we can fill the MetaData block.
+
 ## [7.0.0] - 2023-12-27
 
 * Removes the `isCsv` parameter from `PrepareUpload`
