@@ -175,9 +175,10 @@ namespace Notify.Client
         public async Task<LetterNotificationResponse> SendLetterAsync(string templateId,
             Dictionary<string, dynamic> personalisation,
             string clientReference = null, 
-            Dictionary<string, dynamic> extras = null)
+            Dictionary<string, dynamic> extras = null,
+            string senderOrganisation = null)
         {
-            var o = CreateRequestParams(templateId, personalisation, clientReference, extras);
+            var o = CreateRequestParams(templateId, personalisation, clientReference, extras, senderOrganisation);
 
             var response = await this.POST(SEND_LETTER_NOTIFICATION_URL, o.ToString(Formatting.None))
                 .ConfigureAwait(false);
@@ -318,7 +319,8 @@ namespace Notify.Client
         private static JObject CreateRequestParams(string templateId,
             Dictionary<string, dynamic> personalisation = null,
             string clientReference = null,
-            Dictionary<string, dynamic> extras = null)
+            Dictionary<string, dynamic> extras = null,
+            string senderOrganisation = null)
         {
             var personalisationJson = new JObject();
 
@@ -336,6 +338,12 @@ namespace Notify.Client
             if (clientReference != null)
             {
                 o.Add("reference", clientReference);
+            }
+
+            // Add sender_organisation if provided
+            if (senderOrganisation != null)
+            {
+                o.Add("sender_organisation", senderOrganisation);
             }
 
             if (extras == null)
@@ -485,7 +493,8 @@ namespace Notify.Client
         public LetterNotificationResponse SendLetter(string templateId, 
             Dictionary<string, dynamic> personalisation,
             string clientReference = null, 
-            Dictionary<string, dynamic> extras = null)
+            Dictionary<string, dynamic> extras = null, 
+            string senderOrganisation = null)
         {
             try
             {

@@ -3,9 +3,9 @@
   <PropertyGroup>
     <RestoreProjectStyle>PackageReference</RestoreProjectStyle>
     <TargetFrameworks>netstandard2.0;net6;net462</TargetFrameworks>
-    <Version>7.0.1-custom</Version>
-    <Authors>GOV.UK Notify</Authors>
-    <Description>GOV.UK .NET Notify Client</Description>
+    <Version>7.0.2-custom</Version>
+    <Authors>GOV.UK Notify, WORTH NotifyNL</Authors>
+    <Description>NotifyNL .NET Notify Client Customised GOV.UK Notify</Description>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <PackageReleaseNotes>See https://github.com/alphagov/notifications-net-client/blob/main/CHANGELOG.md</PackageReleaseNotes>
   </PropertyGroup>

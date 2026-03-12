@@ -1,3 +1,7 @@
+## [7.0.1-custom] - 2026-03-12
+
+* Add `senderOrganisation` to `SendLetter` method so we can determine address placement.
+
 ## [7.0.1-custom] - 2026-03-09
 
 * Add `extras` to `SendLetter` method so we can fill the MetaData block.
