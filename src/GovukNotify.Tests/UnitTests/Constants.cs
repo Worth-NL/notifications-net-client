@@ -470,5 +470,20 @@ namespace Notify.Tests.UnitTests
             }
         }
 
+        public const string fakeMessageBoxNotificationResponseJson = @"
+{
+    ""id"": ""msgbox-12345"",
+    ""reference"": ""test-ref-001"",
+    ""content"": {}
+}";
+
+        public const string fakeSender = "12345678901234567890";
+        public const string fakeRecipient = "123456789";
+        public const string fakeMessage = "Test message content";
+        public const string fakeSubject = "Test subject";
+        public const string fakeReference = "test-ref-001";
+        public const string fakeFileBase64 = "dGVzdCBmaWxlIGNvbnRlbnQ=";
+        public const string fakeFilename = "test.txt";
+
     }
 }

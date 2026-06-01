@@ -7,8 +7,13 @@ namespace GovukNotify.Models.Responses
 {
     public class MessageBoxNotificationResponse
     {
-        public string body;
-        [JsonProperty("from_number")]
-        public string fromNumber;
+        [JsonProperty("id")]
+        public string Id { get; set; }
+
+        [JsonProperty("reference")]
+        public string Reference { get; set; }
+
+        [JsonProperty("content")]
+        public object Content { get; set; } // adjust if API returns more fields
     }
 }

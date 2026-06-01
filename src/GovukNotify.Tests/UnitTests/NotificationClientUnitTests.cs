@@ -5,6 +5,7 @@ using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using GovukNotify.Models;
 using Moq;
 using Moq.Protected;
 using Newtonsoft.Json;
@@ -813,6 +814,108 @@ namespace Notify.Tests.UnitTests
 
             var response = client.SendSms(
                 Constants.fakePhoneNumber, Constants.fakeTemplateId, personalisation: personalisation, smsSenderId: Constants.fakeSMSSenderId);
+        }
+
+        [Test, Category("Unit"), Category("Unit/NotificationClient")]
+        public void SendMessageBoxNotificationCreatesExpectedRequest()
+        {
+            var attachments = new List<Attachment>
+    {
+        new Attachment { file = Constants.fakeFileBase64, filename = Constants.fakeFilename }
+    };
+
+            var expectedRequestBody = new JObject
+    {
+        { "sender", Constants.fakeSender },
+        { "recipient", Constants.fakeRecipient },
+        { "message", Constants.fakeMessage },
+        { "subject", Constants.fakeSubject },
+        { "attachments", new JArray
+            {
+                new JObject
+                {
+                    { "file", Constants.fakeFileBase64 },
+                    { "filename", Constants.fakeFilename }
+                }
+            }
+        },
+        { "reference", Constants.fakeReference }
+    };
+
+            MockRequest(Constants.fakeMessageBoxNotificationResponseJson,
+                client.SEND_MESSAGEBOX_NOTIFICATION_URL,
+                AssertValidRequest,
+                HttpMethod.Post,
+                AssertGetExpectedContent,
+                expectedRequestBody.ToString(Formatting.None));
+
+            var response = client.SendMessageBoxNotification(
+                Constants.fakeSender,
+                Constants.fakeRecipient,
+                Constants.fakeMessage,
+                Constants.fakeSubject,
+                attachments,
+                Constants.fakeReference);
+
+            Assert.IsNotNull(response);
+            Assert.AreEqual("msgbox-12345", response.Id);
+            Assert.AreEqual(Constants.fakeReference, response.Reference);
+        }
+
+        [Test, Category("Unit"), Category("Unit/NotificationClient")]
+        public void SendMessageBoxNotificationUsesDefaultSubjectWhenNull()
+        {
+            var attachments = new List<Attachment>
+    {
+        new Attachment { file = Constants.fakeFileBase64, filename = Constants.fakeFilename }
+    };
+
+            var expectedRequestBody = new JObject
+    {
+        { "sender", Constants.fakeSender },
+        { "recipient", Constants.fakeRecipient },
+        { "message", Constants.fakeMessage },
+        { "subject", "Berichtenboxbericht" },
+        { "attachments", new JArray
+            {
+                new JObject
+                {
+                    { "file", Constants.fakeFileBase64 },
+                    { "filename", Constants.fakeFilename }
+                }
+            }
+        }
+    };
+
+            MockRequest(Constants.fakeMessageBoxNotificationResponseJson,
+                client.SEND_MESSAGEBOX_NOTIFICATION_URL,
+                AssertValidRequest,
+                HttpMethod.Post,
+                AssertGetExpectedContent,
+                expectedRequestBody.ToString(Formatting.None));
+
+            var response = client.SendMessageBoxNotification(
+                Constants.fakeSender,
+                Constants.fakeRecipient,
+                Constants.fakeMessage,
+                subject: null,
+                attachments: attachments,
+                reference: null);
+
+            Assert.IsNotNull(response);
+        }
+
+        [Test, Category("Unit"), Category("Unit/NotificationClient")]
+        public void SendMessageBoxNotificationThrowsWhenNoAttachments()
+        {
+            var ex = Assert.Throws<ArgumentException>(() =>
+                client.SendMessageBoxNotification(
+                    Constants.fakeSender,
+                    Constants.fakeRecipient,
+                    Constants.fakeMessage,
+                    attachments: null
+                ));
+            Assert.That(ex.Message, Does.Contain("At least one attachment is required"));
         }
     }
 }

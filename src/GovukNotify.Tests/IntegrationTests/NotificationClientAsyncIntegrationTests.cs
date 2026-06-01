@@ -1,10 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using System.Threading.Tasks;
+using GovukNotify.Models;
 using Notify.Client;
 using Notify.Exceptions;
-using Notify.Interfaces;
 using Notify.Models;
 using Notify.Models.Responses;
 using NUnit.Framework;
@@ -44,14 +45,21 @@ namespace Notify.Tests.IntegrationTests
 		const String TEST_LETTER_BODY = "Hello Foo";
 		const String TEST_LETTER_SUBJECT = "Main heading";
 
-		[SetUp]
-		[Test, Category("Integration"), Category("Integration/NotificationClientAsync")]
-		public void SetUp()
-		{
-			this.client = new NotificationClient(NOTIFY_API_URL, API_KEY);
-		}
+        [SetUp]
+        public void SetUp()
+        {
+            var notifyApiUrl = Environment.GetEnvironmentVariable("NOTIFY_API_URL");
+            var apiKey = Environment.GetEnvironmentVariable("API_KEY");
 
-		[Test, Category("Integration"), Category("Integration/NotificationClientAsync")]
+            if (string.IsNullOrEmpty(notifyApiUrl) || string.IsNullOrEmpty(apiKey))
+            {
+                Assert.Ignore("Integration tests require NOTIFY_API_URL and API_KEY environment variables to be set.");
+            }
+
+            this.client = new NotificationClient(notifyApiUrl, apiKey);
+        }
+
+        [Test, Category("Integration"), Category("Integration/NotificationClientAsync")]
 		public async Task SendSmsTestWithPersonalisation()
 		{
 			Dictionary<String, dynamic> personalisation = new Dictionary<String, dynamic>
@@ -505,5 +513,61 @@ namespace Notify.Tests.IntegrationTests
 			Assert.IsNotNull(response.reference);
 			Assert.AreEqual(response.reference, "sample-test-ref");
 		}
-	}
+
+        [Test, Category("Integration"), Category("Integration/NotificationClientAsync")]
+        public async Task SendMessageBoxNotificationAsyncTest()
+        {
+            var attachments = new List<Attachment>
+            {
+                new Attachment
+                {
+                    file = Convert.ToBase64String(Encoding.UTF8.GetBytes("Hello world")),
+                    filename = "test.txt"
+                }
+            };
+
+            var response = await client.SendMessageBoxNotificationAsync(
+                sender: "12345678901234567890",
+                recipient: "123456789",
+                message: "Test message content",
+                subject: "Test subject",
+                attachments: attachments,
+                reference: "async-test-ref"
+            );
+
+            Assert.IsNotNull(response);
+            Assert.IsNotNull(response.Id);
+            Assert.AreEqual("async-test-ref", response.Reference);
+        }
+
+        [Test, Category("Integration"), Category("Integration/NotificationClientAsync")]
+        public async Task GetMessageBoxNotificationByIdAsyncTest()
+        {
+            // First send a message box notification
+            var attachments = new List<Attachment>
+            {
+                new Attachment
+                {
+                    file = Convert.ToBase64String(Encoding.UTF8.GetBytes("Hello world")),
+                    filename = "test.txt"
+                }
+            };
+
+            var sendResponse = await client.SendMessageBoxNotificationAsync(
+                sender: "12345678901234567890",
+                recipient: "123456789",
+                message: "Test message content",
+                attachments: attachments,
+                reference: "get-test-ref"
+            );
+
+            // Then retrieve it by ID
+            var notification = await client.GetNotificationByIdAsync(sendResponse.Id);
+
+            Assert.IsNotNull(notification);
+            Assert.AreEqual(sendResponse.Id, notification.id);
+            Assert.AreEqual("get-test-ref", notification.reference);
+            Assert.AreEqual("Test message content", notification.body); // assuming body contains the message
+        }
+    }
 }

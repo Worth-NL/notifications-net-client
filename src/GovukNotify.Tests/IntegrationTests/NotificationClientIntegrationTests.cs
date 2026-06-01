@@ -4,6 +4,7 @@ using System.Threading;
 using System.Linq;
 using System.Collections.Generic;
 using System.IO;
+using GovukNotify.Models;
 using Notify.Client;
 using Notify.Exceptions;
 using Notify.Interfaces;
@@ -47,14 +48,21 @@ namespace Notify.Tests.IntegrationTests
 		const String TEST_LETTER_SUBJECT = "Main heading";
 		const String TEST_LETTER_CONTACT_BLOCK = "Government Digital Service\nThe White Chapel Building\n10 Whitechapel High Street\nLondon\nE1 8QS\nUnited Kingdom";
 
-		[SetUp]
-		[Test, Category("Integration"), Category("Integration/NotificationClient")]
-		public void SetUp()
-		{
-			this.client = new NotificationClient(NOTIFY_API_URL, API_KEY);
-		}
+        [SetUp]
+        public void SetUp()
+        {
+            var notifyApiUrl = Environment.GetEnvironmentVariable("NOTIFY_API_URL");
+            var apiKey = Environment.GetEnvironmentVariable("API_KEY");
 
-		[Test, Category("Integration"), Category("Integration/NotificationClient")]
+            if (string.IsNullOrEmpty(notifyApiUrl) || string.IsNullOrEmpty(apiKey))
+            {
+                Assert.Ignore("Integration tests require NOTIFY_API_URL and API_KEY environment variables to be set.");
+            }
+
+            this.client = new NotificationClient(notifyApiUrl, apiKey);
+        }
+
+        [Test, Category("Integration"), Category("Integration/NotificationClient")]
 		public void SendSmsTestWithPersonalisation()
 		{
 			Dictionary<String, dynamic> personalisation = new Dictionary<String, dynamic>
@@ -545,5 +553,61 @@ namespace Notify.Tests.IntegrationTests
 			var expectedResponse = Encoding.UTF8.GetBytes("%PDF-");
 			Assert.AreEqual(pdfData.Take(expectedResponse.Length).ToArray(), expectedResponse);
 		}
-	}
+
+        [Test, Category("Integration"), Category("Integration/NotificationClient")]
+        public void SendMessageBoxNotificationTest()
+        {
+            var attachments = new List<Attachment>
+            {
+                new Attachment
+                {
+                    file = Convert.ToBase64String(Encoding.UTF8.GetBytes("Hello world")),
+                    filename = "test.txt"
+                }
+            };
+
+            var response = client.SendMessageBoxNotification(
+                sender: "12345678901234567890",
+                recipient: "123456789",
+                message: "Test message content",
+                subject: "Test subject",
+                attachments: attachments,
+                reference: "sync-test-ref"
+            );
+
+            Assert.IsNotNull(response);
+            Assert.IsNotNull(response.Id);
+            Assert.AreEqual("sync-test-ref", response.Reference);
+        }
+
+        [Test, Category("Integration"), Category("Integration/NotificationClient")]
+        public void GetMessageBoxNotificationByIdTest()
+        {
+            // Send first
+            var attachments = new List<Attachment>
+            {
+                new Attachment
+                {
+                    file = Convert.ToBase64String(Encoding.UTF8.GetBytes("Hello world")),
+                    filename = "test.txt"
+                }
+            };
+
+            var sendResponse = client.SendMessageBoxNotification(
+                sender: "12345678901234567890",
+                recipient: "123456789",
+                message: "Test message content",
+                attachments: attachments,
+                reference: "get-sync-ref"
+            );
+
+            // Retrieve
+            var notification = client.GetNotificationById(sendResponse.Id);
+
+            Assert.IsNotNull(notification);
+            Assert.AreEqual(sendResponse.Id, notification.id);
+            Assert.AreEqual("get-sync-ref", notification.reference);
+            Assert.AreEqual("Test message content", notification.body);
+        }
+    }
 }
