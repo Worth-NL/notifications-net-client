@@ -2,6 +2,8 @@
 using Notify.Models.Responses;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using GovukNotify.Models;
+using GovukNotify.Models.Responses;
 
 namespace Notify.Interfaces
 {
@@ -22,6 +24,8 @@ namespace Notify.Interfaces
         Task<TemplateResponse> GetTemplateByIdAndVersionAsync(string templateId, int version = 0);
 
         Task<SmsNotificationResponse> SendSmsAsync(string mobileNumber, string templateId, Dictionary<string, dynamic> personalisation = null, string clientReference = null, string smsSenderId = null);
+
+        Task<MessageBoxNotificationResponse> SendMessageBoxNotificationAsync(string sender, string recipient, string message, string subject = null, IEnumerable<Attachment> attachments = null, string reference = null);
 
         Task<EmailNotificationResponse> SendEmailAsync(string emailAddress, string templateId, Dictionary<string, dynamic> personalisation = null, string clientReference = null, string emailReplyToId = null);
 

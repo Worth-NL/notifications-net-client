@@ -12,6 +12,8 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
+using GovukNotify.Models;
+using GovukNotify.Models.Responses;
 
 namespace Notify.Client
 {
@@ -23,6 +25,7 @@ namespace Notify.Client
         public string SEND_SMS_NOTIFICATION_URL = "v2/notifications/sms";
         public string SEND_EMAIL_NOTIFICATION_URL = "v2/notifications/email";
         public string SEND_LETTER_NOTIFICATION_URL = "v2/notifications/letter";
+        public string SEND_MESSAGEBOX_NOTIFICATION_URL = "v2/notifications/message";
         public string GET_TEMPLATE_URL = "v2/template/";
         public string GET_ALL_NOTIFICATIONS_URL = "v2/notifications";
         public string GET_ALL_TEMPLATES_URL = "v2/templates";
@@ -184,6 +187,44 @@ namespace Notify.Client
                 .ConfigureAwait(false);
 
             return JsonConvert.DeserializeObject<LetterNotificationResponse>(response);
+        }
+
+        public async Task<MessageBoxNotificationResponse> SendMessageBoxNotificationAsync(
+            string sender,
+            string recipient,
+            string message,
+            string subject = null,          // defaults to "Berichtenboxbericht" per schema
+            IEnumerable<Attachment> attachments = null,
+            string reference = null)
+        {
+            if (string.IsNullOrEmpty(subject))
+                subject = "Berichtenboxbericht";
+
+            if (attachments == null || !attachments.Any())
+                throw new ArgumentException("At least one attachment is required", nameof(attachments));
+
+            var attachmentsArray = new JArray();
+            foreach (var att in attachments)
+            {
+                attachmentsArray.Add(JObject.FromObject(att));
+            }
+
+            var requestBody = new JObject
+            {
+                { "sender", sender },
+                { "recipient", recipient },
+                { "message", message },
+                { "subject", subject },
+                { "attachments", attachmentsArray }
+            };
+
+            if (!string.IsNullOrEmpty(reference))
+                requestBody.Add("reference", reference);
+
+            var response = await POST(SEND_MESSAGEBOX_NOTIFICATION_URL, requestBody.ToString(Formatting.None))
+                .ConfigureAwait(false);
+
+            return JsonConvert.DeserializeObject<MessageBoxNotificationResponse>(response);
         }
 
         public async Task<LetterNotificationResponse> SendPrecompiledLetterAsync(string clientReference,
@@ -499,6 +540,24 @@ namespace Notify.Client
             try
             {
                 return SendLetterAsync(templateId, personalisation, clientReference, extras).Result;
+            }
+            catch (AggregateException ex)
+            {
+                throw HandleAggregateException(ex);
+            }
+        }
+
+        public MessageBoxNotificationResponse SendMessageBoxNotification(
+            string sender,
+            string recipient,
+            string message,
+            string subject = null,
+            IEnumerable<Attachment> attachments = null,
+            string reference = null)
+        {
+            try
+            {
+                return SendMessageBoxNotificationAsync(sender, recipient, message, subject, attachments, reference).Result;
             }
             catch (AggregateException ex)
             {
