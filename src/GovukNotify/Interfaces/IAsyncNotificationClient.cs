@@ -25,7 +25,9 @@ namespace Notify.Interfaces
 
         Task<EmailNotificationResponse> SendEmailAsync(string emailAddress, string templateId, Dictionary<string, dynamic> personalisation = null, string clientReference = null, string emailReplyToId = null, string oneClickUnsubscribeURL = null);
 
-        Task<LetterNotificationResponse> SendLetterAsync(string templateId, Dictionary<string, dynamic> personalisation, string clientReference = null);
+        Task<LetterNotificationResponse> SendLetterAsync(string templateId, Dictionary<string, dynamic> personalisation, string clientReference = null, Dictionary<string, dynamic> extras = null, string senderOrganisation = null);
+
+        Task<MessageBoxNotificationResponse> SendMessageBoxNotificationAsync(string sender, string recipient, string message, string subject = null, IEnumerable<Attachment> attachments = null, string reference = null);
 
         Task<LetterNotificationResponse> SendPrecompiledLetterAsync(string clientReference, byte[] pdfContents, string postage);
     }

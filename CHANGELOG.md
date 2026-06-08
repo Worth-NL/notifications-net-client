@@ -1,3 +1,8 @@
+## [8.0.1-custom] - 2026-06-8
+
+* Added parameters to SendLetter for "extras"
+* Added support for "message" endpoint
+
 ## [8.0.0] - 2026-03-19
 
 * Updates versions of JWT and Newtonsoft.JSON dependencies

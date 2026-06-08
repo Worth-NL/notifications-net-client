@@ -5,14 +5,15 @@ using NUnit.Framework;
 
 namespace Notify.Tests.IntegrationTests
 {
-    public class NotifyAssertions
+    public static class NotifyAssertions
     {
         public static void AssertNotification(Notification notification)
         {
             Assert.IsNotNull(notification.type);
-            String notificationType = notification.type;
-            String[] allowedNotificationTypes = { "email", "sms", "letter" };
+            string notificationType = notification.type;
+            string[] allowedNotificationTypes = { "email", "sms", "letter" };
             Assert.That(allowedNotificationTypes, Does.Contain(notificationType));
+
             if (notificationType.Equals("sms"))
             {
                 Assert.IsNotNull(notification.phoneNumber);
@@ -31,8 +32,8 @@ namespace Notify.Tests.IntegrationTests
             Assert.IsNotNull(notification.createdAt);
 
             Assert.IsNotNull(notification.status);
-            String notificationStatus = notification.status;
-            String[] allowedStatusTypes = {
+            string notificationStatus = notification.status;
+            string[] allowedStatusTypes = {
                 "created",
                 "sending",
                 "delivered",
@@ -70,15 +71,17 @@ namespace Notify.Tests.IntegrationTests
             Assert.IsNotNull(template.version);
         }
 
-        public static void AssertTemplateResponse(TemplateResponse template, String type = null)
+        public static void AssertTemplateResponse(TemplateResponse template, string type = null)
         {
             Assert.IsNotNull(template);
             Assert.IsNotNull(template.id);
             Assert.IsNotNull(template.name);
             Assert.IsNotNull(template.version);
             Assert.IsNotNull(template.type);
+
             if (template.type.Equals("email") || (!string.IsNullOrEmpty(type) && type.Equals("email")))
                 Assert.IsNotNull(template.subject);
+
             Assert.IsNotNull(template.created_at);
             Assert.IsNotNull(template.created_by);
             Assert.IsNotNull(template.body);

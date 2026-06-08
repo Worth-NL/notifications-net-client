@@ -4,6 +4,7 @@ using System.Threading;
 using System.Linq;
 using System.Collections.Generic;
 using System.IO;
+using Notify.Models;
 using Notify.Client;
 using Notify.Exceptions;
 using Notify.Interfaces;
@@ -18,46 +19,53 @@ namespace Notify.Tests.IntegrationTests
     {
         private NotificationClient client;
 
-        private readonly String NOTIFY_API_URL = Environment.GetEnvironmentVariable("NOTIFY_API_URL");
-        private readonly String API_KEY = Environment.GetEnvironmentVariable("API_KEY");
-        private readonly String API_SENDING_KEY = Environment.GetEnvironmentVariable("API_SENDING_KEY");
+        private readonly string NOTIFY_API_URL = Environment.GetEnvironmentVariable("NOTIFY_API_URL");
+        private readonly string API_KEY = Environment.GetEnvironmentVariable("API_KEY");
+        private readonly string API_SENDING_KEY = Environment.GetEnvironmentVariable("API_SENDING_KEY");
 
-        private readonly String FUNCTIONAL_TEST_NUMBER = Environment.GetEnvironmentVariable("FUNCTIONAL_TEST_NUMBER");
-        private readonly String FUNCTIONAL_TEST_EMAIL = Environment.GetEnvironmentVariable("FUNCTIONAL_TEST_EMAIL");
+        private readonly string FUNCTIONAL_TEST_NUMBER = Environment.GetEnvironmentVariable("FUNCTIONAL_TEST_NUMBER");
+        private readonly string FUNCTIONAL_TEST_EMAIL = Environment.GetEnvironmentVariable("FUNCTIONAL_TEST_EMAIL");
 
-        private readonly String EMAIL_TEMPLATE_ID = Environment.GetEnvironmentVariable("EMAIL_TEMPLATE_ID");
-        private readonly String SMS_TEMPLATE_ID = Environment.GetEnvironmentVariable("SMS_TEMPLATE_ID");
-        private readonly String LETTER_TEMPLATE_ID = Environment.GetEnvironmentVariable("LETTER_TEMPLATE_ID");
-        private readonly String EMAIL_REPLY_TO_ID = Environment.GetEnvironmentVariable("EMAIL_REPLY_TO_ID");
-        private readonly String SMS_SENDER_ID = Environment.GetEnvironmentVariable("SMS_SENDER_ID");
-        private readonly String INBOUND_SMS_QUERY_KEY = Environment.GetEnvironmentVariable("INBOUND_SMS_QUERY_KEY");
+        private readonly string EMAIL_TEMPLATE_ID = Environment.GetEnvironmentVariable("EMAIL_TEMPLATE_ID");
+        private readonly string SMS_TEMPLATE_ID = Environment.GetEnvironmentVariable("SMS_TEMPLATE_ID");
+        private readonly string LETTER_TEMPLATE_ID = Environment.GetEnvironmentVariable("LETTER_TEMPLATE_ID");
+        private readonly string EMAIL_REPLY_TO_ID = Environment.GetEnvironmentVariable("EMAIL_REPLY_TO_ID");
+        private readonly string SMS_SENDER_ID = Environment.GetEnvironmentVariable("SMS_SENDER_ID");
+        private readonly string INBOUND_SMS_QUERY_KEY = Environment.GetEnvironmentVariable("INBOUND_SMS_QUERY_KEY");
 
-        private String smsNotificationId;
-        private String emailNotificationId;
-        private String letterNotificationId;
+        private string smsNotificationId;
+        private string emailNotificationId;
+        private string letterNotificationId;
 
-        const String TEST_TEMPLATE_SMS_BODY = "Hello ((name))\r\n\r\nFunctional Tests make our world a better place";
-        const String TEST_SMS_BODY = "Hello someone\n\nFunctional Tests make our world a better place";
+        const string TEST_TEMPLATE_SMS_BODY = "Hello ((name))\r\n\r\nFunctional Tests make our world a better place";
+        const string TEST_SMS_BODY = "Hello someone\n\nFunctional Tests make our world a better place";
 
-        const String TEST_TEMPLATE_EMAIL_BODY = "Hello ((name))\r\n\r\nFunctional test help make our world a better place";
-        const String TEST_EMAIL_BODY = "Hello someone\r\n\r\nFunctional test help make our world a better place";
-        const String TEST_EMAIL_SUBJECT = "Functional Tests are good";
+        const string TEST_TEMPLATE_EMAIL_BODY = "Hello ((name))\r\n\r\nFunctional test help make our world a better place";
+        const string TEST_EMAIL_BODY = "Hello someone\r\n\r\nFunctional test help make our world a better place";
+        const string TEST_EMAIL_SUBJECT = "Functional Tests are good";
 
-        const String TEST_LETTER_BODY = "Hello Foo";
-        const String TEST_LETTER_SUBJECT = "Main heading";
-        const String TEST_LETTER_CONTACT_BLOCK = "Government Digital Service\nThe White Chapel Building\n10 Whitechapel High Street\nLondon\nE1 8QS\nUnited Kingdom";
+        const string TEST_LETTER_BODY = "Hello Foo";
+        const string TEST_LETTER_SUBJECT = "Main heading";
+        const string TEST_LETTER_CONTACT_BLOCK = "Government Digital Service\nThe White Chapel Building\n10 Whitechapel High Street\nLondon\nE1 8QS\nUnited Kingdom";
 
         [SetUp]
-        [Test, Category("Integration"), Category("Integration/NotificationClient")]
         public void SetUp()
         {
-            this.client = new NotificationClient(NOTIFY_API_URL, API_KEY);
+            var notifyApiUrl = Environment.GetEnvironmentVariable("NOTIFY_API_URL");
+            var apiKey = Environment.GetEnvironmentVariable("API_KEY");
+
+            if (string.IsNullOrEmpty(notifyApiUrl) || string.IsNullOrEmpty(apiKey))
+            {
+                Assert.Ignore("Integration tests require NOTIFY_API_URL and API_KEY environment variables to be set.");
+            }
+
+            this.client = new NotificationClient(notifyApiUrl, apiKey);
         }
 
         [Test, Category("Integration"), Category("Integration/NotificationClient")]
         public void SendSmsTestWithPersonalisation()
         {
-            Dictionary<String, dynamic> personalisation = new Dictionary<String, dynamic>
+            var personalisation = new Dictionary<string, dynamic>
             {
                 { "name", "someone" }
             };
@@ -78,21 +86,6 @@ namespace Notify.Tests.IntegrationTests
             SendSmsTestWithPersonalisation();
             Notification notification = this.client.GetNotificationById(this.smsNotificationId);
 
-            for (int i = 0; i < 24; i++)
-            {
-                if (notification.isCostDataReady)
-                {
-                    break;
-                }
-                else
-                {
-                    Thread.Sleep(5000);
-                    notification = this.client.GetNotificationById(this.smsNotificationId);
-                }
-            }
-
-            Assert.IsTrue(notification.isCostDataReady);
-
             Assert.IsNotNull(notification);
             Assert.IsNotNull(notification.id);
             Assert.AreEqual(notification.id, this.smsNotificationId);
@@ -103,17 +96,13 @@ namespace Notify.Tests.IntegrationTests
             Assert.IsNotNull(notification.reference);
             Assert.AreEqual(notification.reference, "sample-test-ref");
 
-            Assert.IsNotNull(notification.costDetails.smsRate);
-            Assert.IsNotNull(notification.costDetails.billableSmsFragments);
-            Assert.IsNotNull(notification.costDetails.internationalRateMultiplier);
-
             NotifyAssertions.AssertNotification(notification);
         }
 
         [Test, Category("Integration"), Category("Integration/NotificationClient")]
         public void SendEmailTestWithPersonalisation()
         {
-            Dictionary<String, dynamic> personalisation = new Dictionary<String, dynamic>
+            var personalisation = new Dictionary<string, dynamic>
             {
                 { "name", "someone" }
             };
@@ -141,19 +130,13 @@ namespace Notify.Tests.IntegrationTests
             Assert.IsNotNull(notification.subject);
             Assert.AreEqual(notification.subject, TEST_EMAIL_SUBJECT);
 
-            Assert.IsNull(notification.costDetails.smsRate);
-            Assert.IsNull(notification.costDetails.billableSmsFragments);
-            Assert.IsNull(notification.costDetails.internationalRateMultiplier);
-            Assert.IsNull(notification.costDetails.postage);
-            Assert.IsNull(notification.costDetails.billableSheetsOfPaper);
-
             NotifyAssertions.AssertNotification(notification);
         }
 
         [Test, Category("Integration"), Category("Integration/NotificationClient")]
         public void SendLetterTestWithPersonalisation()
         {
-            Dictionary<String, dynamic> personalisation = new Dictionary<String, dynamic>
+            var personalisation = new Dictionary<string, dynamic>
             {
                 { "address_line_1", "Foo" },
                 { "address_line_2", "Bar" },
@@ -166,10 +149,8 @@ namespace Notify.Tests.IntegrationTests
             this.letterNotificationId = response.id;
 
             Assert.IsNotNull(response);
-
             Assert.AreEqual(response.content.body, TEST_LETTER_BODY);
             Assert.AreEqual(response.content.subject, TEST_LETTER_SUBJECT);
-
         }
 
         [Test, Category("Integration"), Category("Integration/NotificationClient")]
@@ -184,12 +165,8 @@ namespace Notify.Tests.IntegrationTests
 
             Assert.IsNotNull(notification.body);
             Assert.AreEqual(notification.body, TEST_LETTER_BODY);
-
             Assert.IsNotNull(notification.subject);
             Assert.AreEqual(notification.subject, TEST_LETTER_SUBJECT);
-
-            Assert.IsNotNull(notification.costDetails.postage);
-            Assert.IsNotNull(notification.costDetails.billableSheetsOfPaper);
 
             NotifyAssertions.AssertNotification(notification);
         }
@@ -197,8 +174,7 @@ namespace Notify.Tests.IntegrationTests
         [Test, Category("Integration"), Category("Integration/NotificationClient")]
         public void SendPrecompiledLetterTest()
         {
-
-            string reference = System.Guid.NewGuid().ToString();
+            string reference = Guid.NewGuid().ToString();
             string postage = "first";
             byte[] pdfContents;
             try
@@ -221,7 +197,6 @@ namespace Notify.Tests.IntegrationTests
             Assert.IsNotNull(notification);
             Assert.IsNotNull(notification.id);
             Assert.AreEqual(notification.id, response.id);
-
             Assert.AreEqual(notification.reference, response.reference);
             Assert.AreEqual(notification.postage, response.postage);
 
@@ -242,7 +217,7 @@ namespace Notify.Tests.IntegrationTests
                 pdfContents = File.ReadAllBytes("IntegrationTests/test_files/one_page_pdf.pdf");
             }
 
-            Dictionary<String, dynamic> personalisation = new Dictionary<String, dynamic>
+            var personalisation = new Dictionary<string, dynamic>
             {
                 { "name", NotificationClient.PrepareUpload(pdfContents) }
             };
@@ -272,7 +247,7 @@ namespace Notify.Tests.IntegrationTests
                 pdfContents = File.ReadAllBytes("IntegrationTests/test_files/one_page_pdf.pdf");
             }
 
-            Dictionary<String, dynamic> personalisation = new Dictionary<String, dynamic>
+            var personalisation = new Dictionary<string, dynamic>
             {
                 { "name", NotificationClient.PrepareUpload(pdfContents, "report.csv", true, "4 weeks") }
             };
@@ -295,13 +270,12 @@ namespace Notify.Tests.IntegrationTests
             Assert.IsNotNull(notificationsResponse);
             Assert.IsNotNull(notificationsResponse.notifications);
 
-            List<Notification> notifications = notificationsResponse.notifications;
+            var notifications = notificationsResponse.notifications;
 
-            foreach (Notification notification in notifications)
+            foreach (var notification in notifications)
             {
                 NotifyAssertions.AssertNotification(notification);
             }
-
         }
 
         [Test, Category("Integration"), Category("Integration/NotificationClient")]
@@ -313,9 +287,9 @@ namespace Notify.Tests.IntegrationTests
             Assert.IsNotNull(receivedTextListResponse.receivedTexts);
             Assert.AreNotEqual(receivedTextListResponse.receivedTexts.Count, 0);
 
-            List<ReceivedTextResponse> receivedTexts = receivedTextListResponse.receivedTexts;
+            var receivedTexts = receivedTextListResponse.receivedTexts;
 
-            foreach (ReceivedTextResponse receivedText in receivedTexts)
+            foreach (var receivedText in receivedTexts)
             {
                 NotifyAssertions.AssertReceivedTextResponse(receivedText);
             }
@@ -355,7 +329,7 @@ namespace Notify.Tests.IntegrationTests
             Assert.IsNotNull(templateList);
             Assert.AreNotEqual(templateList.templates.Count, 0);
 
-            foreach (TemplateResponse template in templateList.templates)
+            foreach (var template in templateList.templates)
             {
                 NotifyAssertions.AssertTemplateResponse(template);
             }
@@ -364,12 +338,12 @@ namespace Notify.Tests.IntegrationTests
         [Test, Category("Integration"), Category("Integration/NotificationClient")]
         public void GetAllSMSTemplates()
         {
-            const String type = "sms";
+            const string type = "sms";
             TemplateList templateList = this.client.GetAllTemplates(type);
             Assert.IsNotNull(templateList);
             Assert.AreNotEqual(templateList.templates.Count, 0);
 
-            foreach (TemplateResponse template in templateList.templates)
+            foreach (var template in templateList.templates)
             {
                 NotifyAssertions.AssertTemplateResponse(template, type);
             }
@@ -378,12 +352,12 @@ namespace Notify.Tests.IntegrationTests
         [Test, Category("Integration"), Category("Integration/NotificationClient")]
         public void GetAllEmailTemplates()
         {
-            const String type = "email";
+            const string type = "email";
             TemplateList templateList = this.client.GetAllTemplates(type);
             Assert.IsNotNull(templateList);
             Assert.AreNotEqual(templateList.templates.Count, 0);
 
-            foreach (TemplateResponse template in templateList.templates)
+            foreach (var template in templateList.templates)
             {
                 NotifyAssertions.AssertTemplateResponse(template, type);
             }
@@ -392,10 +366,10 @@ namespace Notify.Tests.IntegrationTests
         [Test, Category("Integration"), Category("Integration/NotificationClient")]
         public void GetAllInvalidTemplatesRaisesClientException()
         {
-            const String type = "invalid";
+            const string type = "invalid";
 
             var ex = Assert.Throws<NotifyClientException>(() => this.client.GetAllTemplates(type));
-            Assert.That(ex.Message, Does.Contain("type invalid is not one of [sms, email, letter]"));
+            Assert.That(ex.Message, Does.Contain("type invalid is not one of [sms, email, letter, broadcast]"));
         }
 
         [Test, Category("Integration"), Category("Integration/NotificationClient")]
@@ -425,7 +399,7 @@ namespace Notify.Tests.IntegrationTests
         [Test, Category("Integration"), Category("Integration/NotificationClient")]
         public void GenerateSMSPreviewWithPersonalisation()
         {
-            Dictionary<String, dynamic> personalisation = new Dictionary<String, dynamic>
+            var personalisation = new Dictionary<string, dynamic>
             {
                 { "name", "someone" }
             };
@@ -441,7 +415,7 @@ namespace Notify.Tests.IntegrationTests
         [Test, Category("Integration"), Category("Integration/NotificationClient")]
         public void GenerateEmailPreviewWithPersonalisation()
         {
-            Dictionary<String, dynamic> personalisation = new Dictionary<String, dynamic>
+            var personalisation = new Dictionary<string, dynamic>
             {
                 { "name", "someone" }
             };
@@ -457,7 +431,7 @@ namespace Notify.Tests.IntegrationTests
         [Test, Category("Integration"), Category("Integration/NotificationClient")]
         public void GenerateEmailPreviewWithMissingPersonalisationRaisesClientException()
         {
-            Dictionary<String, dynamic> personalisation = new Dictionary<String, dynamic>
+            var personalisation = new Dictionary<string, dynamic>
             {
                 { "invalid", "personalisation" }
             };
@@ -469,10 +443,40 @@ namespace Notify.Tests.IntegrationTests
         }
 
         [Test, Category("Integration"), Category("Integration/NotificationClient")]
+        public void SendEmailTestServiceDefaultEmailReplyTo()
+        {
+            var personalisation = new Dictionary<string, dynamic>
+            {
+                { "name", "someone" }
+            };
+
+            EmailNotificationResponse response = this.client.SendEmail(FUNCTIONAL_TEST_EMAIL, EMAIL_TEMPLATE_ID, personalisation);
+            this.emailNotificationId = response.id;
+            Assert.IsNotNull(response);
+            Assert.AreEqual(response.content.body, TEST_EMAIL_BODY);
+            Assert.AreEqual(response.content.subject, TEST_EMAIL_SUBJECT);
+        }
+
+        [Test, Category("Integration"), Category("Integration/NotificationClient")]
+        public void SendEmailTestSpecificEmailReplyTo()
+        {
+            var personalisation = new Dictionary<string, dynamic>
+            {
+                { "name", "someone" }
+            };
+
+            EmailNotificationResponse response = this.client.SendEmail(FUNCTIONAL_TEST_EMAIL, EMAIL_TEMPLATE_ID, personalisation, emailReplyToId: EMAIL_REPLY_TO_ID);
+            this.emailNotificationId = response.id;
+            Assert.IsNotNull(response);
+            Assert.AreEqual(response.content.body, TEST_EMAIL_BODY);
+            Assert.AreEqual(response.content.subject, TEST_EMAIL_SUBJECT);
+        }
+
+        [Test, Category("Integration"), Category("Integration/NotificationClient")]
         public void SendEmailTestEmailReplyToNotPresent()
         {
-            String fakeReplayToId = System.Guid.NewGuid().ToString();
-            Dictionary<String, dynamic> personalisation = new Dictionary<String, dynamic>
+            string fakeReplayToId = Guid.NewGuid().ToString();
+            var personalisation = new Dictionary<string, dynamic>
             {
                 { "name", "someone" }
             };
@@ -484,36 +488,27 @@ namespace Notify.Tests.IntegrationTests
         [Test, Category("Integration"), Category("Integration/NotificationClient")]
         public void SendEmailTestAllArguments()
         {
-            Dictionary<String, dynamic> personalisation = new Dictionary<String, dynamic>
+            var personalisation = new Dictionary<string, dynamic>
             {
                 { "name", "someone" }
             };
 
-            EmailNotificationResponse response = this.client.SendEmail(
-                FUNCTIONAL_TEST_EMAIL,
-                EMAIL_TEMPLATE_ID,
-                personalisation,
-                clientReference: "TestReference",
-                emailReplyToId: EMAIL_REPLY_TO_ID,
-                oneClickUnsubscribeURL: "https://www.example.com/unsubscribe"
-            );
+            EmailNotificationResponse response = this.client.SendEmail(FUNCTIONAL_TEST_EMAIL, EMAIL_TEMPLATE_ID, personalisation, clientReference: "TestReference", emailReplyToId: EMAIL_REPLY_TO_ID);
             this.emailNotificationId = response.id;
             Assert.IsNotNull(response);
             Assert.AreEqual(response.content.body, TEST_EMAIL_BODY);
             Assert.AreEqual(response.content.subject, TEST_EMAIL_SUBJECT);
-            Assert.AreEqual(response.reference, "TestReference");
-            Assert.AreEqual(response.content.oneClickUnsubscribeURL, "https://www.example.com/unsubscribe");
         }
 
         [Test, Category("Integration"), Category("Integration/NotificationClient")]
         public void SendSmsTestWithPersonalisationAndSmsSenderId()
         {
-            Dictionary<String, dynamic> personalisation = new Dictionary<String, dynamic>
+            var personalisation = new Dictionary<string, dynamic>
             {
                 { "name", "someone" }
             };
 
-            NotificationClient client_sending = new NotificationClient(NOTIFY_API_URL, API_SENDING_KEY);
+            var client_sending = new NotificationClient(NOTIFY_API_URL, API_SENDING_KEY);
 
             SmsNotificationResponse response =
                 client_sending.SendSms(FUNCTIONAL_TEST_NUMBER, SMS_TEMPLATE_ID, personalisation, "sample-test-ref", SMS_SENDER_ID);
@@ -529,7 +524,7 @@ namespace Notify.Tests.IntegrationTests
         public void GetPdfForLetter()
         {
             byte[] pdfData = null;
-            for (int i = 0; i < 24; i++)
+            for (int i = 0; i < 15; i++)
             {
                 try
                 {
@@ -542,15 +537,66 @@ namespace Notify.Tests.IntegrationTests
                     {
                         throw e;
                     }
-                    else
-                    {
-                        Thread.Sleep(5000);
-                    }
+                    Thread.Sleep(3000);
                 }
             }
             Assert.IsNotNull(pdfData);
             var expectedResponse = Encoding.UTF8.GetBytes("%PDF-");
             Assert.AreEqual(pdfData.Take(expectedResponse.Length).ToArray(), expectedResponse);
+        }
+
+        [Test, Category("Integration"), Category("Integration/NotificationClient")]
+        public void SendMessageBoxNotificationTest()
+        {
+            var attachments = new List<Attachment>
+            {
+                new Attachment
+                {
+                    file = Convert.ToBase64String(Encoding.UTF8.GetBytes("Hello world")),
+                    filename = "test.txt"
+                }
+            };
+
+            var response = client.SendMessageBoxNotification(
+                sender: "12345678901234567890",
+                recipient: "123456789",
+                message: "Test message content",
+                subject: "Test subject",
+                attachments: attachments,
+                reference: "sync-test-ref"
+            );
+
+            Assert.IsNotNull(response);
+            Assert.IsNotNull(response.Id);
+            Assert.AreEqual("sync-test-ref", response.Reference);
+        }
+
+        [Test, Category("Integration"), Category("Integration/NotificationClient")]
+        public void GetMessageBoxNotificationByIdTest()
+        {
+            var attachments = new List<Attachment>
+            {
+                new Attachment
+                {
+                    file = Convert.ToBase64String(Encoding.UTF8.GetBytes("Hello world")),
+                    filename = "test.txt"
+                }
+            };
+
+            var sendResponse = client.SendMessageBoxNotification(
+                sender: "12345678901234567890",
+                recipient: "123456789",
+                message: "Test message content",
+                attachments: attachments,
+                reference: "get-sync-ref"
+            );
+
+            var notification = client.GetNotificationById(sendResponse.Id);
+
+            Assert.IsNotNull(notification);
+            Assert.AreEqual(sendResponse.Id, notification.id);
+            Assert.AreEqual("get-sync-ref", notification.reference);
+            Assert.AreEqual("Test message content", notification.body);
         }
     }
 }

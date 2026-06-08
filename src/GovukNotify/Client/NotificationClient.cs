@@ -7,7 +7,6 @@ using Notify.Models.Responses;
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
-using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -23,6 +22,7 @@ namespace Notify.Client
         public string SEND_SMS_NOTIFICATION_URL = "v2/notifications/sms";
         public string SEND_EMAIL_NOTIFICATION_URL = "v2/notifications/email";
         public string SEND_LETTER_NOTIFICATION_URL = "v2/notifications/letter";
+        public string SEND_MESSAGEBOX_NOTIFICATION_URL = "v2/notifications/message";
         public string GET_TEMPLATE_URL = "v2/template/";
         public string GET_ALL_NOTIFICATIONS_URL = "v2/notifications";
         public string GET_ALL_TEMPLATES_URL = "v2/templates";
@@ -156,7 +156,7 @@ namespace Notify.Client
 
         public async Task<EmailNotificationResponse> SendEmailAsync(string emailAddress, string templateId,
             Dictionary<string, dynamic> personalisation = null, string clientReference = null,
-            string emailReplyToId = null, string oneClickUnsubscribeURL = null)
+            string emailReplyToId = null, string oneClickUnsubscribeURL = null)   // RESTORED
         {
             var o = CreateRequestParams(templateId, personalisation, clientReference);
             o.AddFirst(new JProperty("email_address", emailAddress));
@@ -177,13 +177,52 @@ namespace Notify.Client
         }
 
         public async Task<LetterNotificationResponse> SendLetterAsync(string templateId, Dictionary<string, dynamic> personalisation,
-            string clientReference = null)
+            string clientReference = null,
+            Dictionary<string, dynamic> extras = null,
+            string senderOrganisation = null)
         {
-            var o = CreateRequestParams(templateId, personalisation, clientReference);
+            var o = CreateRequestParams(templateId, personalisation, clientReference, extras, senderOrganisation);
 
             var response = await this.POST(SEND_LETTER_NOTIFICATION_URL, o.ToString(Formatting.None)).ConfigureAwait(false);
 
             return JsonConvert.DeserializeObject<LetterNotificationResponse>(response);
+        }
+
+        public async Task<MessageBoxNotificationResponse> SendMessageBoxNotificationAsync(
+            string sender,
+            string recipient,
+            string message,
+            string subject = null,
+            IEnumerable<Attachment> attachments = null,
+            string reference = null)
+        {
+            if (string.IsNullOrEmpty(subject))
+                subject = "Berichtenboxbericht";
+
+            if (attachments == null || !attachments.Any())
+                throw new ArgumentException("At least one attachment is required", nameof(attachments));
+
+            var attachmentsArray = new JArray();
+            foreach (var att in attachments)
+            {
+                attachmentsArray.Add(JObject.FromObject(att));
+            }
+
+            var requestBody = new JObject
+            {
+                { "sender", sender },
+                { "recipient", recipient },
+                { "message", message },
+                { "subject", subject },
+                { "attachments", attachmentsArray }
+            };
+
+            if (!string.IsNullOrEmpty(reference))
+                requestBody.Add("reference", reference);
+
+            var response = await POST(SEND_MESSAGEBOX_NOTIFICATION_URL, requestBody.ToString(Formatting.None)).ConfigureAwait(false);
+
+            return JsonConvert.DeserializeObject<MessageBoxNotificationResponse>(response);
         }
 
         public async Task<LetterNotificationResponse> SendPrecompiledLetterAsync(string clientReference, byte[] pdfContents, string postage = null)
@@ -311,7 +350,9 @@ namespace Notify.Client
         }
 
         private static JObject CreateRequestParams(string templateId, Dictionary<string, dynamic> personalisation = null,
-            string clientReference = null)
+            string clientReference = null,
+            Dictionary<string, dynamic> extras = null,
+            string senderOrganisation = null)
         {
             var personalisationJson = new JObject();
 
@@ -329,6 +370,17 @@ namespace Notify.Client
             if (clientReference != null)
             {
                 o.Add("reference", clientReference);
+            }
+
+            if (senderOrganisation != null)
+            {
+                o.Add("sender_organisation", senderOrganisation);
+            }
+
+            if (extras != null)
+            {
+                var extrasJson = JObject.FromObject(extras);
+                o.Add("extras", extrasJson);
             }
 
             return o;
@@ -447,7 +499,7 @@ namespace Notify.Client
             }
         }
 
-        public EmailNotificationResponse SendEmail(string emailAddress, string templateId, Dictionary<string, dynamic> personalisation = null, string clientReference = null, string emailReplyToId = null, string oneClickUnsubscribeURL = null)
+        public EmailNotificationResponse SendEmail(string emailAddress, string templateId, Dictionary<string, dynamic> personalisation = null, string clientReference = null, string emailReplyToId = null, string oneClickUnsubscribeURL = null)   // RESTORED
         {
             try
             {
@@ -459,11 +511,32 @@ namespace Notify.Client
             }
         }
 
-        public LetterNotificationResponse SendLetter(string templateId, Dictionary<string, dynamic> personalisation, string clientReference = null)
+        public LetterNotificationResponse SendLetter(string templateId, Dictionary<string, dynamic> personalisation,
+            string clientReference = null,
+            Dictionary<string, dynamic> extras = null,
+            string senderOrganisation = null)
         {
             try
             {
-                return SendLetterAsync(templateId, personalisation, clientReference).Result;
+                return SendLetterAsync(templateId, personalisation, clientReference, extras, senderOrganisation).Result;
+            }
+            catch (AggregateException ex)
+            {
+                throw HandleAggregateException(ex);
+            }
+        }
+
+        public MessageBoxNotificationResponse SendMessageBoxNotification(
+            string sender,
+            string recipient,
+            string message,
+            string subject = null,
+            IEnumerable<Attachment> attachments = null,
+            string reference = null)
+        {
+            try
+            {
+                return SendMessageBoxNotificationAsync(sender, recipient, message, subject, attachments, reference).Result;
             }
             catch (AggregateException ex)
             {
