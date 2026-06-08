@@ -156,7 +156,7 @@ namespace Notify.Client
 
         public async Task<EmailNotificationResponse> SendEmailAsync(string emailAddress, string templateId,
             Dictionary<string, dynamic> personalisation = null, string clientReference = null,
-            string emailReplyToId = null, string oneClickUnsubscribeURL = null)   // RESTORED
+            string emailReplyToId = null, string oneClickUnsubscribeURL = null)
         {
             var o = CreateRequestParams(templateId, personalisation, clientReference);
             o.AddFirst(new JProperty("email_address", emailAddress));
