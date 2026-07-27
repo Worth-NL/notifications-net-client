@@ -1,3 +1,14 @@
+## [9.0.2-custom] - 2026-07-27
+
+* Fixed the messagebox notification endpoint to use `v2/notifications/messagebox` (was incorrectly posting to `v2/notifications/message`)
+* Removed the `sender` parameter from `SendMessageBoxNotification`/`SendMessageBoxNotificationAsync` to match the current NotifyNL messagebox schema
+* Added request validation for `SendMessageBoxNotification`/`SendMessageBoxNotificationAsync`:
+  * `recipient` must be a 9-digit BSN
+  * `message` must not exceed 4000 characters
+  * `subject` must not exceed 50 characters
+  * between 1 and 2 attachments are required, each with a `filename` of at most 128 characters
+  * `reference` must not exceed 1000 characters
+
 ## [8.0.1-custom] - 2026-06-8
 
 * Added parameters to SendLetter for "extras"

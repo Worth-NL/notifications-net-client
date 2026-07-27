@@ -558,7 +558,6 @@ namespace Notify.Tests.IntegrationTests
             };
 
             var response = client.SendMessageBoxNotification(
-                sender: "12345678901234567890",
                 recipient: "123456789",
                 message: "Test message content",
                 subject: "Test subject",
@@ -584,7 +583,6 @@ namespace Notify.Tests.IntegrationTests
             };
 
             var sendResponse = client.SendMessageBoxNotification(
-                sender: "12345678901234567890",
                 recipient: "123456789",
                 message: "Test message content",
                 attachments: attachments,

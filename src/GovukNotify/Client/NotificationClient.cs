@@ -10,6 +10,7 @@ using System.Collections.Specialized;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace Notify.Client
@@ -22,7 +23,7 @@ namespace Notify.Client
         public string SEND_SMS_NOTIFICATION_URL = "v2/notifications/sms";
         public string SEND_EMAIL_NOTIFICATION_URL = "v2/notifications/email";
         public string SEND_LETTER_NOTIFICATION_URL = "v2/notifications/letter";
-        public string SEND_MESSAGEBOX_NOTIFICATION_URL = "v2/notifications/message";
+        public string SEND_MESSAGEBOX_NOTIFICATION_URL = "v2/notifications/messagebox";
         public string GET_TEMPLATE_URL = "v2/template/";
         public string GET_ALL_NOTIFICATIONS_URL = "v2/notifications";
         public string GET_ALL_TEMPLATES_URL = "v2/templates";
@@ -188,29 +189,61 @@ namespace Notify.Client
             return JsonConvert.DeserializeObject<LetterNotificationResponse>(response);
         }
 
+        private static readonly Regex MessageBoxRecipientPattern = new Regex("^[0-9]{9}$", RegexOptions.Compiled);
+
         public async Task<MessageBoxNotificationResponse> SendMessageBoxNotificationAsync(
-            string sender,
             string recipient,
             string message,
             string subject = null,
             IEnumerable<Attachment> attachments = null,
             string reference = null)
         {
+            if (recipient == null || !MessageBoxRecipientPattern.IsMatch(recipient))
+                throw new ArgumentException("Recipient must be a 9-digit BSN", nameof(recipient));
+
+            if (string.IsNullOrEmpty(message))
+                throw new ArgumentException("Message is required", nameof(message));
+
+            if (message.Length > 4000)
+                throw new ArgumentException("Message must not exceed 4000 characters", nameof(message));
+
             if (string.IsNullOrEmpty(subject))
                 subject = "Berichtenboxbericht";
+
+            if (subject.Length > 50)
+                throw new ArgumentException("Subject must not exceed 50 characters", nameof(subject));
 
             if (attachments == null || !attachments.Any())
                 throw new ArgumentException("At least one attachment is required", nameof(attachments));
 
+            var attachmentsList = attachments.ToList();
+
+            if (attachmentsList.Count > 2)
+                throw new ArgumentException("No more than 2 attachments are allowed", nameof(attachments));
+
+            foreach (var attachment in attachmentsList)
+            {
+                if (string.IsNullOrEmpty(attachment.file))
+                    throw new ArgumentException("Attachment file content is required", nameof(attachments));
+
+                if (string.IsNullOrEmpty(attachment.filename))
+                    throw new ArgumentException("Attachment filename is required", nameof(attachments));
+
+                if (attachment.filename.Length > 128)
+                    throw new ArgumentException("Attachment filename must not exceed 128 characters", nameof(attachments));
+            }
+
+            if (reference != null && reference.Length > 1000)
+                throw new ArgumentException("Reference must not exceed 1000 characters", nameof(reference));
+
             var attachmentsArray = new JArray();
-            foreach (var att in attachments)
+            foreach (var att in attachmentsList)
             {
                 attachmentsArray.Add(JObject.FromObject(att));
             }
 
             var requestBody = new JObject
             {
-                { "sender", sender },
                 { "recipient", recipient },
                 { "message", message },
                 { "subject", subject },
@@ -527,7 +560,6 @@ namespace Notify.Client
         }
 
         public MessageBoxNotificationResponse SendMessageBoxNotification(
-            string sender,
             string recipient,
             string message,
             string subject = null,
@@ -536,7 +568,7 @@ namespace Notify.Client
         {
             try
             {
-                return SendMessageBoxNotificationAsync(sender, recipient, message, subject, attachments, reference).Result;
+                return SendMessageBoxNotificationAsync(recipient, message, subject, attachments, reference).Result;
             }
             catch (AggregateException ex)
             {

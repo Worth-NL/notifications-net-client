@@ -27,7 +27,7 @@ namespace Notify.Interfaces
 
         Task<LetterNotificationResponse> SendLetterAsync(string templateId, Dictionary<string, dynamic> personalisation, string clientReference = null, Dictionary<string, dynamic> extras = null, string senderOrganisation = null);
 
-        Task<MessageBoxNotificationResponse> SendMessageBoxNotificationAsync(string sender, string recipient, string message, string subject = null, IEnumerable<Attachment> attachments = null, string reference = null);
+        Task<MessageBoxNotificationResponse> SendMessageBoxNotificationAsync(string recipient, string message, string subject = null, IEnumerable<Attachment> attachments = null, string reference = null);
 
         Task<LetterNotificationResponse> SendPrecompiledLetterAsync(string clientReference, byte[] pdfContents, string postage);
     }

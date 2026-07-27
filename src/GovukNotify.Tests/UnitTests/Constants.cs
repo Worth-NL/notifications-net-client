@@ -509,7 +509,6 @@ namespace Notify.Tests.UnitTests
             ""content"": {}
         }";
 
-        public const string fakeSender = "12345678901234567890";
         public const string fakeRecipient = "123456789";
         public const string fakeMessage = "Test message content";
         public const string fakeSubject = "Test subject";

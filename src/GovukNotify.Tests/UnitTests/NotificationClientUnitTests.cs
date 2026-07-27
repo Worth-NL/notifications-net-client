@@ -764,7 +764,6 @@ namespace Notify.Tests.UnitTests
 
             var expectedRequestBody = new JObject
             {
-                { "sender", Constants.fakeSender },
                 { "recipient", Constants.fakeRecipient },
                 { "message", Constants.fakeMessage },
                 { "subject", Constants.fakeSubject },
@@ -788,7 +787,6 @@ namespace Notify.Tests.UnitTests
                 expectedRequestBody.ToString(Formatting.None));
 
             var response = client.SendMessageBoxNotification(
-                Constants.fakeSender,
                 Constants.fakeRecipient,
                 Constants.fakeMessage,
                 Constants.fakeSubject,
@@ -810,7 +808,6 @@ namespace Notify.Tests.UnitTests
 
             var expectedRequestBody = new JObject
             {
-                { "sender", Constants.fakeSender },
                 { "recipient", Constants.fakeRecipient },
                 { "message", Constants.fakeMessage },
                 { "subject", "Berichtenboxbericht" },
@@ -833,7 +830,6 @@ namespace Notify.Tests.UnitTests
                 expectedRequestBody.ToString(Formatting.None));
 
             var response = client.SendMessageBoxNotification(
-                Constants.fakeSender,
                 Constants.fakeRecipient,
                 Constants.fakeMessage,
                 subject: null,
@@ -848,12 +844,117 @@ namespace Notify.Tests.UnitTests
         {
             var ex = Assert.Throws<ArgumentException>(() =>
                 client.SendMessageBoxNotification(
-                    Constants.fakeSender,
                     Constants.fakeRecipient,
                     Constants.fakeMessage,
                     attachments: null
                 ));
             Assert.That(ex.Message, Does.Contain("At least one attachment is required"));
+        }
+
+        [Test, Category("Unit"), Category("Unit/NotificationClient")]
+        public void SendMessageBoxNotificationThrowsWhenRecipientIsNotANineDigitBsn()
+        {
+            var attachments = new List<Attachment>
+            {
+                new Attachment { file = Constants.fakeFileBase64, filename = Constants.fakeFilename }
+            };
+
+            var ex = Assert.Throws<ArgumentException>(() =>
+                client.SendMessageBoxNotification(
+                    "not-a-bsn",
+                    Constants.fakeMessage,
+                    attachments: attachments
+                ));
+            Assert.That(ex.Message, Does.Contain("Recipient must be a 9-digit BSN"));
+        }
+
+        [Test, Category("Unit"), Category("Unit/NotificationClient")]
+        public void SendMessageBoxNotificationThrowsWhenMessageExceedsMaxLength()
+        {
+            var attachments = new List<Attachment>
+            {
+                new Attachment { file = Constants.fakeFileBase64, filename = Constants.fakeFilename }
+            };
+
+            var ex = Assert.Throws<ArgumentException>(() =>
+                client.SendMessageBoxNotification(
+                    Constants.fakeRecipient,
+                    new string('x', 4001),
+                    attachments: attachments
+                ));
+            Assert.That(ex.Message, Does.Contain("Message must not exceed 4000 characters"));
+        }
+
+        [Test, Category("Unit"), Category("Unit/NotificationClient")]
+        public void SendMessageBoxNotificationThrowsWhenSubjectExceedsMaxLength()
+        {
+            var attachments = new List<Attachment>
+            {
+                new Attachment { file = Constants.fakeFileBase64, filename = Constants.fakeFilename }
+            };
+
+            var ex = Assert.Throws<ArgumentException>(() =>
+                client.SendMessageBoxNotification(
+                    Constants.fakeRecipient,
+                    Constants.fakeMessage,
+                    subject: new string('x', 51),
+                    attachments: attachments
+                ));
+            Assert.That(ex.Message, Does.Contain("Subject must not exceed 50 characters"));
+        }
+
+        [Test, Category("Unit"), Category("Unit/NotificationClient")]
+        public void SendMessageBoxNotificationThrowsWhenMoreThanTwoAttachments()
+        {
+            var attachments = new List<Attachment>
+            {
+                new Attachment { file = Constants.fakeFileBase64, filename = Constants.fakeFilename },
+                new Attachment { file = Constants.fakeFileBase64, filename = Constants.fakeFilename },
+                new Attachment { file = Constants.fakeFileBase64, filename = Constants.fakeFilename }
+            };
+
+            var ex = Assert.Throws<ArgumentException>(() =>
+                client.SendMessageBoxNotification(
+                    Constants.fakeRecipient,
+                    Constants.fakeMessage,
+                    attachments: attachments
+                ));
+            Assert.That(ex.Message, Does.Contain("No more than 2 attachments are allowed"));
+        }
+
+        [Test, Category("Unit"), Category("Unit/NotificationClient")]
+        public void SendMessageBoxNotificationThrowsWhenAttachmentFilenameExceedsMaxLength()
+        {
+            var attachments = new List<Attachment>
+            {
+                new Attachment { file = Constants.fakeFileBase64, filename = new string('x', 129) }
+            };
+
+            var ex = Assert.Throws<ArgumentException>(() =>
+                client.SendMessageBoxNotification(
+                    Constants.fakeRecipient,
+                    Constants.fakeMessage,
+                    attachments: attachments
+                ));
+            Assert.That(ex.Message, Does.Contain("Attachment filename must not exceed 128 characters"));
+        }
+
+        [Test, Category("Unit"), Category("Unit/NotificationClient")]
+        public void SendMessageBoxNotificationThrowsWhenReferenceExceedsMaxLength()
+        {
+            var attachments = new List<Attachment>
+            {
+                new Attachment { file = Constants.fakeFileBase64, filename = Constants.fakeFilename }
+            };
+
+            var ex = Assert.Throws<ArgumentException>(() =>
+                client.SendMessageBoxNotification(
+                    Constants.fakeRecipient,
+                    Constants.fakeMessage,
+                    attachments: attachments,
+                    reference: new string('x', 1001)
+                ));
+            Assert.That(ex.Message, Does.Contain("Reference must not exceed 1000 characters"));
         }
 
         private static void AssertGetExpectedContent(string expected, string content)
