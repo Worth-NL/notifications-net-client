@@ -560,6 +560,7 @@ namespace Notify.Tests.IntegrationTests
             var response = client.SendMessageBoxNotification(
                 recipient: "123456789",
                 message: "Test message content",
+                messageType: "TESTTYPE",
                 subject: "Test subject",
                 attachments: attachments,
                 reference: "sync-test-ref"
@@ -585,6 +586,7 @@ namespace Notify.Tests.IntegrationTests
             var sendResponse = client.SendMessageBoxNotification(
                 recipient: "123456789",
                 message: "Test message content",
+                messageType: "TESTTYPE",
                 attachments: attachments,
                 reference: "get-sync-ref"
             );

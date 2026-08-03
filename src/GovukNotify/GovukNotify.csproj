@@ -14,7 +14,7 @@
 	<PropertyGroup>
 		<PackageId>GovukNotify</PackageId>
 		<!-- or "GovukNotify.Custom" to avoid confusion -->
-		<Version>9.0.2-custom</Version>
+		<Version>9.1.0-custom</Version>
 		<Authors>GOV.UK Notify / WORTH</Authors>
 		<Description>Customised GOV.UK Notify client for our internal use.</Description>
 		<PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>

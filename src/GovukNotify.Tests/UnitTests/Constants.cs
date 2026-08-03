@@ -511,6 +511,7 @@ namespace Notify.Tests.UnitTests
 
         public const string fakeRecipient = "123456789";
         public const string fakeMessage = "Test message content";
+        public const string fakeMessageType = "TESTTYPE";
         public const string fakeSubject = "Test subject";
         public const string fakeReference = "test-ref-001";
         public const string fakeFileBase64 = "dGVzdCBmaWxlIGNvbnRlbnQ=";

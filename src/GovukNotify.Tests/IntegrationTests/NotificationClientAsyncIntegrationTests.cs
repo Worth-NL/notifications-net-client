@@ -525,6 +525,7 @@ namespace Notify.Tests.IntegrationTests
             var response = await client.SendMessageBoxNotificationAsync(
                 recipient: "123456789",
                 message: "Test message content",
+                messageType: "TESTTYPE",
                 subject: "Test subject",
                 attachments: attachments,
                 reference: "async-test-ref"
@@ -550,6 +551,7 @@ namespace Notify.Tests.IntegrationTests
             var sendResponse = await client.SendMessageBoxNotificationAsync(
                 recipient: "123456789",
                 message: "Test message content",
+                messageType: "TESTTYPE",
                 attachments: attachments,
                 reference: "get-test-ref"
             );

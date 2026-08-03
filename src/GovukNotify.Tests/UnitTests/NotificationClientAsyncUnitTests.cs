@@ -752,6 +752,7 @@ namespace Notify.Tests.UnitTests
             {
                 { "recipient", Constants.fakeRecipient },
                 { "message", Constants.fakeMessage },
+                { "message_type", Constants.fakeMessageType },
                 { "subject", Constants.fakeSubject },
                 { "attachments", new JArray
                     {
@@ -775,6 +776,7 @@ namespace Notify.Tests.UnitTests
             var response = await client.SendMessageBoxNotificationAsync(
                 Constants.fakeRecipient,
                 Constants.fakeMessage,
+                Constants.fakeMessageType,
                 Constants.fakeSubject,
                 attachments,
                 Constants.fakeReference);
@@ -796,6 +798,7 @@ namespace Notify.Tests.UnitTests
             {
                 { "recipient", Constants.fakeRecipient },
                 { "message", Constants.fakeMessage },
+                { "message_type", Constants.fakeMessageType },
                 { "subject", "Berichtenboxbericht" },
                 { "attachments", new JArray
                     {
@@ -818,6 +821,7 @@ namespace Notify.Tests.UnitTests
             var response = await client.SendMessageBoxNotificationAsync(
                 Constants.fakeRecipient,
                 Constants.fakeMessage,
+                Constants.fakeMessageType,
                 subject: null,
                 attachments: attachments,
                 reference: null);
@@ -826,15 +830,34 @@ namespace Notify.Tests.UnitTests
         }
 
         [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
-        public void SendMessageBoxNotificationAsyncThrowsWhenNoAttachments()
+        public async Task SendMessageBoxNotificationAsyncSucceedsWithNoAttachments()
         {
-            var ex = Assert.ThrowsAsync<ArgumentException>(async () =>
-                await client.SendMessageBoxNotificationAsync(
-                    Constants.fakeRecipient,
-                    Constants.fakeMessage,
-                    attachments: null
-                ));
-            Assert.That(ex.Message, Does.Contain("At least one attachment is required"));
+            var expectedRequestBody = new JObject
+            {
+                { "recipient", Constants.fakeRecipient },
+                { "message", Constants.fakeMessage },
+                { "message_type", Constants.fakeMessageType },
+                { "subject", Constants.fakeSubject },
+                { "attachments", new JArray() },
+                { "reference", Constants.fakeReference }
+            };
+
+            MockRequest(Constants.fakeMessageBoxNotificationResponseJson,
+                client.SEND_MESSAGEBOX_NOTIFICATION_URL,
+                AssertValidRequest,
+                HttpMethod.Post,
+                AssertGetExpectedContent,
+                expectedRequestBody.ToString(Formatting.None));
+
+            var response = await client.SendMessageBoxNotificationAsync(
+                Constants.fakeRecipient,
+                Constants.fakeMessage,
+                Constants.fakeMessageType,
+                Constants.fakeSubject,
+                attachments: null,
+                reference: Constants.fakeReference);
+
+            Assert.IsNotNull(response);
         }
 
         [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
@@ -849,6 +872,7 @@ namespace Notify.Tests.UnitTests
                 await client.SendMessageBoxNotificationAsync(
                     "not-a-bsn",
                     Constants.fakeMessage,
+                    Constants.fakeMessageType,
                     attachments: attachments
                 ));
             Assert.That(ex.Message, Does.Contain("Recipient must be a 9-digit BSN"));
@@ -866,9 +890,28 @@ namespace Notify.Tests.UnitTests
                 await client.SendMessageBoxNotificationAsync(
                     Constants.fakeRecipient,
                     new string('x', 4001),
+                    Constants.fakeMessageType,
                     attachments: attachments
                 ));
             Assert.That(ex.Message, Does.Contain("Message must not exceed 4000 characters"));
+        }
+
+        [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
+        public void SendMessageBoxNotificationAsyncThrowsWhenMessageTypeIsNotEightCharacters()
+        {
+            var attachments = new List<Attachment>
+            {
+                new Attachment { file = Constants.fakeFileBase64, filename = Constants.fakeFilename }
+            };
+
+            var ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+                await client.SendMessageBoxNotificationAsync(
+                    Constants.fakeRecipient,
+                    Constants.fakeMessage,
+                    "short",
+                    attachments: attachments
+                ));
+            Assert.That(ex.Message, Does.Contain("Message type must be exactly 8 characters"));
         }
 
         [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
@@ -883,6 +926,7 @@ namespace Notify.Tests.UnitTests
                 await client.SendMessageBoxNotificationAsync(
                     Constants.fakeRecipient,
                     Constants.fakeMessage,
+                    Constants.fakeMessageType,
                     subject: new string('x', 51),
                     attachments: attachments
                 ));
@@ -903,6 +947,7 @@ namespace Notify.Tests.UnitTests
                 await client.SendMessageBoxNotificationAsync(
                     Constants.fakeRecipient,
                     Constants.fakeMessage,
+                    Constants.fakeMessageType,
                     attachments: attachments
                 ));
             Assert.That(ex.Message, Does.Contain("No more than 2 attachments are allowed"));
@@ -920,6 +965,7 @@ namespace Notify.Tests.UnitTests
                 await client.SendMessageBoxNotificationAsync(
                     Constants.fakeRecipient,
                     Constants.fakeMessage,
+                    Constants.fakeMessageType,
                     attachments: attachments
                 ));
             Assert.That(ex.Message, Does.Contain("Attachment filename must not exceed 128 characters"));
@@ -937,6 +983,7 @@ namespace Notify.Tests.UnitTests
                 await client.SendMessageBoxNotificationAsync(
                     Constants.fakeRecipient,
                     Constants.fakeMessage,
+                    Constants.fakeMessageType,
                     attachments: attachments,
                     reference: new string('x', 1001)
                 ));

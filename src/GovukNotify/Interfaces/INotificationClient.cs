@@ -26,7 +26,7 @@ namespace Notify.Interfaces
 
         LetterNotificationResponse SendLetter(string templateId, Dictionary<string, dynamic> personalisation, string clientReference = null, Dictionary<string, dynamic> extras = null, string senderOrganisation = null);
 
-        MessageBoxNotificationResponse SendMessageBoxNotification(string recipient, string message, string subject = null, IEnumerable<Attachment> attachments = null, string reference = null);
+        MessageBoxNotificationResponse SendMessageBoxNotification(string recipient, string message, string messageType, string subject = null, IEnumerable<Attachment> attachments = null, string reference = null);
 
         LetterNotificationResponse SendPrecompiledLetter(string clientReference, byte[] pdfContents, string postage = null);
     }

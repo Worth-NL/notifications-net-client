@@ -194,6 +194,7 @@ namespace Notify.Client
         public async Task<MessageBoxNotificationResponse> SendMessageBoxNotificationAsync(
             string recipient,
             string message,
+            string messageType,
             string subject = null,
             IEnumerable<Attachment> attachments = null,
             string reference = null)
@@ -207,16 +208,16 @@ namespace Notify.Client
             if (message.Length > 4000)
                 throw new ArgumentException("Message must not exceed 4000 characters", nameof(message));
 
+            if (messageType == null || messageType.Length != 8)
+                throw new ArgumentException("Message type must be exactly 8 characters", nameof(messageType));
+
             if (string.IsNullOrEmpty(subject))
                 subject = "Berichtenboxbericht";
 
             if (subject.Length > 50)
                 throw new ArgumentException("Subject must not exceed 50 characters", nameof(subject));
 
-            if (attachments == null || !attachments.Any())
-                throw new ArgumentException("At least one attachment is required", nameof(attachments));
-
-            var attachmentsList = attachments.ToList();
+            var attachmentsList = attachments?.ToList() ?? new List<Attachment>();
 
             if (attachmentsList.Count > 2)
                 throw new ArgumentException("No more than 2 attachments are allowed", nameof(attachments));
@@ -246,6 +247,7 @@ namespace Notify.Client
             {
                 { "recipient", recipient },
                 { "message", message },
+                { "message_type", messageType },
                 { "subject", subject },
                 { "attachments", attachmentsArray }
             };
@@ -562,13 +564,14 @@ namespace Notify.Client
         public MessageBoxNotificationResponse SendMessageBoxNotification(
             string recipient,
             string message,
+            string messageType,
             string subject = null,
             IEnumerable<Attachment> attachments = null,
             string reference = null)
         {
             try
             {
-                return SendMessageBoxNotificationAsync(recipient, message, subject, attachments, reference).Result;
+                return SendMessageBoxNotificationAsync(recipient, message, messageType, subject, attachments, reference).Result;
             }
             catch (AggregateException ex)
             {
