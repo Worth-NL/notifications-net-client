@@ -897,7 +897,7 @@ namespace Notify.Tests.UnitTests
         }
 
         [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
-        public void SendMessageBoxNotificationAsyncThrowsWhenMessageTypeIsNotEightCharacters()
+        public void SendMessageBoxNotificationAsyncThrowsWhenMessageTypeExceedsMaxLength()
         {
             var attachments = new List<Attachment>
             {
@@ -908,10 +908,28 @@ namespace Notify.Tests.UnitTests
                 await client.SendMessageBoxNotificationAsync(
                     Constants.fakeRecipient,
                     Constants.fakeMessage,
-                    "short",
+                    new string('x', 9),
                     attachments: attachments
                 ));
-            Assert.That(ex.Message, Does.Contain("Message type must be exactly 8 characters"));
+            Assert.That(ex.Message, Does.Contain("Message type must not exceed 8 characters"));
+        }
+
+        [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
+        public void SendMessageBoxNotificationAsyncThrowsWhenMessageTypeIsMissing()
+        {
+            var attachments = new List<Attachment>
+            {
+                new Attachment { file = Constants.fakeFileBase64, filename = Constants.fakeFilename }
+            };
+
+            var ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+                await client.SendMessageBoxNotificationAsync(
+                    Constants.fakeRecipient,
+                    Constants.fakeMessage,
+                    "",
+                    attachments: attachments
+                ));
+            Assert.That(ex.Message, Does.Contain("Message type is required"));
         }
 
         [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]

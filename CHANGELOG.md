@@ -1,7 +1,7 @@
 ## [9.1.0-custom] - 2026-08-03
 
 * `SendMessageBoxNotification`/`SendMessageBoxNotificationAsync` now accept 0 to 2 attachments (previously 1 to 2 - at least one was required)
-* Added a required `messageType` parameter to `SendMessageBoxNotification`/`SendMessageBoxNotificationAsync`, sent as `message_type` in the request body; must be exactly 8 characters
+* Added a required `messageType` parameter to `SendMessageBoxNotification`/`SendMessageBoxNotificationAsync`, sent as `message_type` in the request body; must not exceed 8 characters
 
 ## [9.0.2-custom] - 2026-07-27
 

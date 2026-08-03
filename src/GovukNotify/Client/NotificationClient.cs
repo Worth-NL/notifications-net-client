@@ -208,8 +208,11 @@ namespace Notify.Client
             if (message.Length > 4000)
                 throw new ArgumentException("Message must not exceed 4000 characters", nameof(message));
 
-            if (messageType == null || messageType.Length != 8)
-                throw new ArgumentException("Message type must be exactly 8 characters", nameof(messageType));
+            if (string.IsNullOrEmpty(messageType))
+                throw new ArgumentException("Message type is required", nameof(messageType));
+
+            if (messageType.Length > 8)
+                throw new ArgumentException("Message type must not exceed 8 characters", nameof(messageType));
 
             if (string.IsNullOrEmpty(subject))
                 subject = "Berichtenboxbericht";
