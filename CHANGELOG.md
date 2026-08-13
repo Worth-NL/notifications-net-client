@@ -1,3 +1,16 @@
+## [9.4.0-custom] - 2026-08-13
+
+* `SendLetter`/`SendLetterAsync` now accept an optional `attachments` parameter (1 to 2 base64-encoded strings), sent as `attachments` in the request body, per the updated `POST v2/notifications/letter` (template) schema
+* `reference` on `SendLetter`/`SendLetterAsync` must not exceed 1000 characters, per the same schema
+* Removed `extras` and `senderOrganisation` from `SendLetter`/`SendLetterAsync` — the same schema has `additionalProperties: false` and no longer lists either as allowed, so requests using them would be rejected by NotifyNL
+* Added `SendPrecompiledLetter`/`SendPrecompiledLetterAsync` overloads accepting `IEnumerable<byte[]>` (1 to 3 PDFs), sent as `contents` in the request body — an alternative to the existing single-PDF `content` overload, per the updated `POST v2/notifications/letter` (precompiled) schema
+* `reference` is now required (and validated) on both `SendPrecompiledLetter`/`SendPrecompiledLetterAsync` overloads, per the same schema
+
+## [9.2.0-custom] - 2026-08-05
+
+* `messageType` on `SendMessageBoxNotification`/`SendMessageBoxNotificationAsync` is now optional (was required) and no longer has a length limit (was max 8 characters), per the updated `POST v2/notifications/messagebox` schema
+* When `messageType` is null or empty, `message_type` is omitted from the request body entirely instead of being sent as an empty string
+
 ## [9.1.0-custom] - 2026-08-03
 
 * `SendMessageBoxNotification`/`SendMessageBoxNotificationAsync` now accept 0 to 2 attachments (previously 1 to 2 - at least one was required)

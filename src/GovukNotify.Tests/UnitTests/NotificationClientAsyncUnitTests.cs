@@ -672,6 +672,163 @@ namespace Notify.Tests.UnitTests
         }
 
         [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
+        public async Task SendLetterNotificationWithAttachmentsGeneratesExpectedRequest()
+        {
+            var personalisation = new Dictionary<string, dynamic>
+                {
+                    { "address_line_1", "Foo" },
+                    { "address_line_2", "Bar" },
+                    { "postcode", "SW1 1AA" }
+                };
+            var attachments = new List<string> { Constants.fakeFileBase64, Constants.fakeFileBase64 };
+            JObject expected = new JObject
+            {
+                { "template_id", Constants.fakeTemplateId },
+                { "personalisation", JObject.FromObject(personalisation) },
+                { "reference", Constants.fakeNotificationReference },
+                { "attachments", new JArray { Constants.fakeFileBase64, Constants.fakeFileBase64 } }
+            };
+
+            MockRequest(Constants.fakeTemplatePreviewResponseJson,
+                client.SEND_LETTER_NOTIFICATION_URL,
+                AssertValidRequest,
+                HttpMethod.Post,
+                AssertGetExpectedContent, expected.ToString(Formatting.None));
+
+            await client.SendLetterAsync(Constants.fakeTemplateId, personalisation, Constants.fakeNotificationReference, attachments: attachments);
+        }
+
+        [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
+        public async Task SendLetterNotificationOmitsAttachmentsWhenNull()
+        {
+            var personalisation = new Dictionary<string, dynamic>
+                {
+                    { "address_line_1", "Foo" }
+                };
+            JObject expected = new JObject
+            {
+                { "template_id", Constants.fakeTemplateId },
+                { "personalisation", JObject.FromObject(personalisation) },
+                { "reference", Constants.fakeNotificationReference }
+            };
+
+            MockRequest(Constants.fakeTemplatePreviewResponseJson,
+                client.SEND_LETTER_NOTIFICATION_URL,
+                AssertValidRequest,
+                HttpMethod.Post,
+                AssertGetExpectedContent, expected.ToString(Formatting.None));
+
+            await client.SendLetterAsync(Constants.fakeTemplateId, personalisation, Constants.fakeNotificationReference, attachments: null);
+        }
+
+        [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
+        public void SendLetterNotificationAsyncThrowsWhenAttachmentsListIsEmpty()
+        {
+            var personalisation = new Dictionary<string, dynamic> { { "address_line_1", "Foo" } };
+
+            var ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+                await client.SendLetterAsync(Constants.fakeTemplateId, personalisation, Constants.fakeNotificationReference,
+                    attachments: new List<string>())
+            );
+            Assert.That(ex.Message, Does.Contain("At least 1 attachment is required"));
+        }
+
+        [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
+        public void SendLetterNotificationAsyncThrowsWhenMoreThanTwoAttachments()
+        {
+            var personalisation = new Dictionary<string, dynamic> { { "address_line_1", "Foo" } };
+            var attachments = new List<string> { Constants.fakeFileBase64, Constants.fakeFileBase64, Constants.fakeFileBase64 };
+
+            var ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+                await client.SendLetterAsync(Constants.fakeTemplateId, personalisation, Constants.fakeNotificationReference,
+                    attachments: attachments)
+            );
+            Assert.That(ex.Message, Does.Contain("No more than 2 attachments are allowed"));
+        }
+
+        [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
+        public void SendLetterNotificationAsyncThrowsWhenReferenceExceedsMaxLength()
+        {
+            var personalisation = new Dictionary<string, dynamic> { { "address_line_1", "Foo" } };
+            var longReference = new string('x', 1001);
+
+            var ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+                await client.SendLetterAsync(Constants.fakeTemplateId, personalisation, longReference)
+            );
+            Assert.That(ex.Message, Does.Contain("Reference must not exceed 1000 characters"));
+        }
+
+        [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
+        public async Task SendPrecompiledLetterNotificationWithContentsGeneratesExpectedRequest()
+        {
+            var pdfContentsList = new List<byte[]>
+            {
+                Encoding.UTF8.GetBytes("%PDF-1.5 testpdf1"),
+                Encoding.UTF8.GetBytes("%PDF-1.5 testpdf2")
+            };
+            JObject expected = new JObject
+            {
+                { "reference", Constants.fakeNotificationReference },
+                { "contents", new JArray
+                    {
+                        System.Convert.ToBase64String(pdfContentsList[0]),
+                        System.Convert.ToBase64String(pdfContentsList[1])
+                    }
+                }
+            };
+
+            MockRequest(Constants.fakeTemplatePreviewResponseJson,
+                client.SEND_LETTER_NOTIFICATION_URL,
+                AssertValidRequest,
+                HttpMethod.Post,
+                AssertGetExpectedContent, expected.ToString(Formatting.None));
+
+            await client.SendPrecompiledLetterAsync(Constants.fakeNotificationReference, pdfContentsList);
+        }
+
+        [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
+        public void SendPrecompiledLetterNotificationAsyncThrowsWhenContentsListIsEmpty()
+        {
+            var ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+                await client.SendPrecompiledLetterAsync(Constants.fakeNotificationReference, new List<byte[]>())
+            );
+            Assert.That(ex.Message, Does.Contain("At least 1 PDF content is required"));
+        }
+
+        [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
+        public void SendPrecompiledLetterNotificationAsyncThrowsWhenMoreThanThreeContents()
+        {
+            var pdfContentsList = new List<byte[]>
+            {
+                Encoding.UTF8.GetBytes("a"), Encoding.UTF8.GetBytes("b"),
+                Encoding.UTF8.GetBytes("c"), Encoding.UTF8.GetBytes("d")
+            };
+
+            var ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+                await client.SendPrecompiledLetterAsync(Constants.fakeNotificationReference, pdfContentsList)
+            );
+            Assert.That(ex.Message, Does.Contain("No more than 3 PDF contents are allowed"));
+        }
+
+        [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
+        public void SendPrecompiledLetterNotificationAsyncThrowsWhenReferenceIsMissing()
+        {
+            var ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+                await client.SendPrecompiledLetterAsync(null, Encoding.UTF8.GetBytes("%PDF-1.5 testpdf"))
+            );
+            Assert.That(ex.Message, Does.Contain("Reference is required"));
+        }
+
+        [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
+        public void SendPrecompiledLetterNotificationAsyncThrowsWhenReferenceIsMissingForContentsOverload()
+        {
+            var ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+                await client.SendPrecompiledLetterAsync(null, new List<byte[]> { Encoding.UTF8.GetBytes("%PDF-1.5 testpdf") })
+            );
+            Assert.That(ex.Message, Does.Contain("Reference is required"));
+        }
+
+        [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
         public async Task SendEmailNotificationWithReplyToIdGeneratesExpectedRequest()
         {
             var personalisation = new Dictionary<string, dynamic>
@@ -897,39 +1054,87 @@ namespace Notify.Tests.UnitTests
         }
 
         [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
-        public void SendMessageBoxNotificationAsyncThrowsWhenMessageTypeExceedsMaxLength()
+        public async Task SendMessageBoxNotificationAsyncOmitsMessageTypeWhenNull()
         {
             var attachments = new List<Attachment>
             {
                 new Attachment { file = Constants.fakeFileBase64, filename = Constants.fakeFilename }
             };
 
-            var ex = Assert.ThrowsAsync<ArgumentException>(async () =>
-                await client.SendMessageBoxNotificationAsync(
-                    Constants.fakeRecipient,
-                    Constants.fakeMessage,
-                    new string('x', 9),
-                    attachments: attachments
-                ));
-            Assert.That(ex.Message, Does.Contain("Message type must not exceed 8 characters"));
+            var expectedRequestBody = new JObject
+            {
+                { "recipient", Constants.fakeRecipient },
+                { "message", Constants.fakeMessage },
+                { "subject", Constants.fakeSubject },
+                { "attachments", new JArray
+                    {
+                        new JObject
+                        {
+                            { "file", Constants.fakeFileBase64 },
+                            { "filename", Constants.fakeFilename }
+                        }
+                    }
+                }
+            };
+
+            MockRequest(Constants.fakeMessageBoxNotificationResponseJson,
+                client.SEND_MESSAGEBOX_NOTIFICATION_URL,
+                AssertValidRequest,
+                HttpMethod.Post,
+                AssertGetExpectedContent,
+                expectedRequestBody.ToString(Formatting.None));
+
+            var response = await client.SendMessageBoxNotificationAsync(
+                Constants.fakeRecipient,
+                Constants.fakeMessage,
+                messageType: null,
+                subject: Constants.fakeSubject,
+                attachments: attachments);
+
+            Assert.IsNotNull(response);
         }
 
         [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
-        public void SendMessageBoxNotificationAsyncThrowsWhenMessageTypeIsMissing()
+        public async Task SendMessageBoxNotificationAsyncAcceptsMessageTypeOfAnyLength()
         {
             var attachments = new List<Attachment>
             {
                 new Attachment { file = Constants.fakeFileBase64, filename = Constants.fakeFilename }
             };
+            var longMessageType = new string('x', 50);
 
-            var ex = Assert.ThrowsAsync<ArgumentException>(async () =>
-                await client.SendMessageBoxNotificationAsync(
-                    Constants.fakeRecipient,
-                    Constants.fakeMessage,
-                    "",
-                    attachments: attachments
-                ));
-            Assert.That(ex.Message, Does.Contain("Message type is required"));
+            var expectedRequestBody = new JObject
+            {
+                { "recipient", Constants.fakeRecipient },
+                { "message", Constants.fakeMessage },
+                { "message_type", longMessageType },
+                { "subject", Constants.fakeSubject },
+                { "attachments", new JArray
+                    {
+                        new JObject
+                        {
+                            { "file", Constants.fakeFileBase64 },
+                            { "filename", Constants.fakeFilename }
+                        }
+                    }
+                }
+            };
+
+            MockRequest(Constants.fakeMessageBoxNotificationResponseJson,
+                client.SEND_MESSAGEBOX_NOTIFICATION_URL,
+                AssertValidRequest,
+                HttpMethod.Post,
+                AssertGetExpectedContent,
+                expectedRequestBody.ToString(Formatting.None));
+
+            var response = await client.SendMessageBoxNotificationAsync(
+                Constants.fakeRecipient,
+                Constants.fakeMessage,
+                longMessageType,
+                subject: Constants.fakeSubject,
+                attachments: attachments);
+
+            Assert.IsNotNull(response);
         }
 
         [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]

@@ -626,6 +626,31 @@ namespace Notify.Tests.UnitTests
         }
 
         [Test, Category("Unit"), Category("Unit/NotificationClient")]
+        public void SendLetterNotificationWithAttachmentsGeneratesExpectedRequest()
+        {
+            var personalisation = new Dictionary<string, dynamic>
+                {
+                    { "address_line_1", "Foo" }
+                };
+            var attachments = new List<string> { Constants.fakeFileBase64 };
+            JObject expected = new JObject
+            {
+                { "template_id", Constants.fakeTemplateId },
+                { "personalisation", JObject.FromObject(personalisation) },
+                { "reference", Constants.fakeNotificationReference },
+                { "attachments", new JArray { Constants.fakeFileBase64 } }
+            };
+
+            MockRequest(Constants.fakeTemplatePreviewResponseJson,
+                client.SEND_LETTER_NOTIFICATION_URL,
+                AssertValidRequest,
+                HttpMethod.Post,
+                AssertGetExpectedContent, expected.ToString(Formatting.None));
+
+            client.SendLetter(Constants.fakeTemplateId, personalisation, Constants.fakeNotificationReference, attachments: attachments);
+        }
+
+        [Test, Category("Unit"), Category("Unit/NotificationClient")]
         public void SendPrecompiledLetterNotificationGeneratesExpectedRequest()
         {
             JObject expected = new JObject
@@ -667,6 +692,34 @@ namespace Notify.Tests.UnitTests
                     Encoding.UTF8.GetBytes("%PDF-1.5 testpdf"),
                     "first"
             );
+        }
+
+        [Test, Category("Unit"), Category("Unit/NotificationClient")]
+        public void SendPrecompiledLetterNotificationWithContentsGeneratesExpectedRequest()
+        {
+            var pdfContentsList = new List<byte[]>
+            {
+                Encoding.UTF8.GetBytes("%PDF-1.5 testpdf1"),
+                Encoding.UTF8.GetBytes("%PDF-1.5 testpdf2")
+            };
+            JObject expected = new JObject
+            {
+                { "reference", Constants.fakeNotificationReference },
+                { "contents", new JArray
+                    {
+                        System.Convert.ToBase64String(pdfContentsList[0]),
+                        System.Convert.ToBase64String(pdfContentsList[1])
+                    }
+                }
+            };
+
+            MockRequest(Constants.fakeTemplatePreviewResponseJson,
+                client.SEND_LETTER_NOTIFICATION_URL,
+                AssertValidRequest,
+                HttpMethod.Post,
+                AssertGetExpectedContent, expected.ToString(Formatting.None));
+
+            client.SendPrecompiledLetter(Constants.fakeNotificationReference, pdfContentsList);
         }
 
         [Test, Category("Unit"), Category("Unit/NotificationClient")]
@@ -911,39 +964,87 @@ namespace Notify.Tests.UnitTests
         }
 
         [Test, Category("Unit"), Category("Unit/NotificationClient")]
-        public void SendMessageBoxNotificationThrowsWhenMessageTypeExceedsMaxLength()
+        public void SendMessageBoxNotificationOmitsMessageTypeWhenNull()
         {
             var attachments = new List<Attachment>
             {
                 new Attachment { file = Constants.fakeFileBase64, filename = Constants.fakeFilename }
             };
 
-            var ex = Assert.Throws<ArgumentException>(() =>
-                client.SendMessageBoxNotification(
-                    Constants.fakeRecipient,
-                    Constants.fakeMessage,
-                    new string('x', 9),
-                    attachments: attachments
-                ));
-            Assert.That(ex.Message, Does.Contain("Message type must not exceed 8 characters"));
+            var expectedRequestBody = new JObject
+            {
+                { "recipient", Constants.fakeRecipient },
+                { "message", Constants.fakeMessage },
+                { "subject", Constants.fakeSubject },
+                { "attachments", new JArray
+                    {
+                        new JObject
+                        {
+                            { "file", Constants.fakeFileBase64 },
+                            { "filename", Constants.fakeFilename }
+                        }
+                    }
+                }
+            };
+
+            MockRequest(Constants.fakeMessageBoxNotificationResponseJson,
+                client.SEND_MESSAGEBOX_NOTIFICATION_URL,
+                AssertValidRequest,
+                HttpMethod.Post,
+                AssertGetExpectedContent,
+                expectedRequestBody.ToString(Formatting.None));
+
+            var response = client.SendMessageBoxNotification(
+                Constants.fakeRecipient,
+                Constants.fakeMessage,
+                messageType: null,
+                subject: Constants.fakeSubject,
+                attachments: attachments);
+
+            Assert.IsNotNull(response);
         }
 
         [Test, Category("Unit"), Category("Unit/NotificationClient")]
-        public void SendMessageBoxNotificationThrowsWhenMessageTypeIsMissing()
+        public void SendMessageBoxNotificationAcceptsMessageTypeOfAnyLength()
         {
             var attachments = new List<Attachment>
             {
                 new Attachment { file = Constants.fakeFileBase64, filename = Constants.fakeFilename }
             };
+            var longMessageType = new string('x', 50);
 
-            var ex = Assert.Throws<ArgumentException>(() =>
-                client.SendMessageBoxNotification(
-                    Constants.fakeRecipient,
-                    Constants.fakeMessage,
-                    "",
-                    attachments: attachments
-                ));
-            Assert.That(ex.Message, Does.Contain("Message type is required"));
+            var expectedRequestBody = new JObject
+            {
+                { "recipient", Constants.fakeRecipient },
+                { "message", Constants.fakeMessage },
+                { "message_type", longMessageType },
+                { "subject", Constants.fakeSubject },
+                { "attachments", new JArray
+                    {
+                        new JObject
+                        {
+                            { "file", Constants.fakeFileBase64 },
+                            { "filename", Constants.fakeFilename }
+                        }
+                    }
+                }
+            };
+
+            MockRequest(Constants.fakeMessageBoxNotificationResponseJson,
+                client.SEND_MESSAGEBOX_NOTIFICATION_URL,
+                AssertValidRequest,
+                HttpMethod.Post,
+                AssertGetExpectedContent,
+                expectedRequestBody.ToString(Formatting.None));
+
+            var response = client.SendMessageBoxNotification(
+                Constants.fakeRecipient,
+                Constants.fakeMessage,
+                longMessageType,
+                subject: Constants.fakeSubject,
+                attachments: attachments);
+
+            Assert.IsNotNull(response);
         }
 
         [Test, Category("Unit"), Category("Unit/NotificationClient")]

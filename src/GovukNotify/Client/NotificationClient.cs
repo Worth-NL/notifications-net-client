@@ -179,10 +179,33 @@ namespace Notify.Client
 
         public async Task<LetterNotificationResponse> SendLetterAsync(string templateId, Dictionary<string, dynamic> personalisation,
             string clientReference = null,
-            Dictionary<string, dynamic> extras = null,
-            string senderOrganisation = null)
+            IEnumerable<string> attachments = null)
         {
-            var o = CreateRequestParams(templateId, personalisation, clientReference, extras, senderOrganisation);
+            if (clientReference != null && clientReference.Length > 1000)
+                throw new ArgumentException("Reference must not exceed 1000 characters", nameof(clientReference));
+
+            var attachmentsList = attachments?.ToList();
+
+            if (attachmentsList != null)
+            {
+                if (attachmentsList.Count == 0)
+                    throw new ArgumentException("At least 1 attachment is required when attachments is provided", nameof(attachments));
+
+                if (attachmentsList.Count > 2)
+                    throw new ArgumentException("No more than 2 attachments are allowed", nameof(attachments));
+            }
+
+            var o = CreateRequestParams(templateId, personalisation, clientReference);
+
+            if (attachmentsList != null)
+            {
+                var attachmentsArray = new JArray();
+                foreach (var attachment in attachmentsList)
+                {
+                    attachmentsArray.Add(attachment);
+                }
+                o.Add("attachments", attachmentsArray);
+            }
 
             var response = await this.POST(SEND_LETTER_NOTIFICATION_URL, o.ToString(Formatting.None)).ConfigureAwait(false);
 
@@ -194,7 +217,7 @@ namespace Notify.Client
         public async Task<MessageBoxNotificationResponse> SendMessageBoxNotificationAsync(
             string recipient,
             string message,
-            string messageType,
+            string messageType = null,
             string subject = null,
             IEnumerable<Attachment> attachments = null,
             string reference = null)
@@ -207,12 +230,6 @@ namespace Notify.Client
 
             if (message.Length > 4000)
                 throw new ArgumentException("Message must not exceed 4000 characters", nameof(message));
-
-            if (string.IsNullOrEmpty(messageType))
-                throw new ArgumentException("Message type is required", nameof(messageType));
-
-            if (messageType.Length > 8)
-                throw new ArgumentException("Message type must not exceed 8 characters", nameof(messageType));
 
             if (string.IsNullOrEmpty(subject))
                 subject = "Berichtenboxbericht";
@@ -249,11 +266,14 @@ namespace Notify.Client
             var requestBody = new JObject
             {
                 { "recipient", recipient },
-                { "message", message },
-                { "message_type", messageType },
-                { "subject", subject },
-                { "attachments", attachmentsArray }
+                { "message", message }
             };
+
+            if (!string.IsNullOrEmpty(messageType))
+                requestBody.Add("message_type", messageType);
+
+            requestBody.Add("subject", subject);
+            requestBody.Add("attachments", attachmentsArray);
 
             if (!string.IsNullOrEmpty(reference))
                 requestBody.Add("reference", reference);
@@ -265,10 +285,48 @@ namespace Notify.Client
 
         public async Task<LetterNotificationResponse> SendPrecompiledLetterAsync(string clientReference, byte[] pdfContents, string postage = null)
         {
+            if (string.IsNullOrEmpty(clientReference))
+                throw new ArgumentException("Reference is required", nameof(clientReference));
+
             var requestParams = new JObject
             {
                 {"reference", clientReference},
                 {"content", System.Convert.ToBase64String(pdfContents)}
+            };
+
+            if (postage != null)
+            {
+                requestParams.Add(new JProperty("postage", postage));
+            }
+
+            var response = await this.POST(SEND_LETTER_NOTIFICATION_URL, requestParams.ToString(Formatting.None)).ConfigureAwait(false);
+
+            return JsonConvert.DeserializeObject<LetterNotificationResponse>(response);
+        }
+
+        public async Task<LetterNotificationResponse> SendPrecompiledLetterAsync(string clientReference, IEnumerable<byte[]> pdfContentsList, string postage = null)
+        {
+            if (string.IsNullOrEmpty(clientReference))
+                throw new ArgumentException("Reference is required", nameof(clientReference));
+
+            var contentsList = pdfContentsList?.ToList() ?? new List<byte[]>();
+
+            if (contentsList.Count == 0)
+                throw new ArgumentException("At least 1 PDF content is required", nameof(pdfContentsList));
+
+            if (contentsList.Count > 3)
+                throw new ArgumentException("No more than 3 PDF contents are allowed", nameof(pdfContentsList));
+
+            var contentsArray = new JArray();
+            foreach (var pdf in contentsList)
+            {
+                contentsArray.Add(System.Convert.ToBase64String(pdf));
+            }
+
+            var requestParams = new JObject
+            {
+                {"reference", clientReference},
+                {"contents", contentsArray}
             };
 
             if (postage != null)
@@ -388,9 +446,7 @@ namespace Notify.Client
         }
 
         private static JObject CreateRequestParams(string templateId, Dictionary<string, dynamic> personalisation = null,
-            string clientReference = null,
-            Dictionary<string, dynamic> extras = null,
-            string senderOrganisation = null)
+            string clientReference = null)
         {
             var personalisationJson = new JObject();
 
@@ -408,17 +464,6 @@ namespace Notify.Client
             if (clientReference != null)
             {
                 o.Add("reference", clientReference);
-            }
-
-            if (senderOrganisation != null)
-            {
-                o.Add("sender_organisation", senderOrganisation);
-            }
-
-            if (extras != null)
-            {
-                var extrasJson = JObject.FromObject(extras);
-                o.Add("extras", extrasJson);
             }
 
             return o;
@@ -551,12 +596,11 @@ namespace Notify.Client
 
         public LetterNotificationResponse SendLetter(string templateId, Dictionary<string, dynamic> personalisation,
             string clientReference = null,
-            Dictionary<string, dynamic> extras = null,
-            string senderOrganisation = null)
+            IEnumerable<string> attachments = null)
         {
             try
             {
-                return SendLetterAsync(templateId, personalisation, clientReference, extras, senderOrganisation).Result;
+                return SendLetterAsync(templateId, personalisation, clientReference, attachments).Result;
             }
             catch (AggregateException ex)
             {
@@ -567,7 +611,7 @@ namespace Notify.Client
         public MessageBoxNotificationResponse SendMessageBoxNotification(
             string recipient,
             string message,
-            string messageType,
+            string messageType = null,
             string subject = null,
             IEnumerable<Attachment> attachments = null,
             string reference = null)
@@ -587,6 +631,18 @@ namespace Notify.Client
             try
             {
                 return SendPrecompiledLetterAsync(clientReference, pdfContents, postage).Result;
+            }
+            catch (AggregateException ex)
+            {
+                throw HandleAggregateException(ex);
+            }
+        }
+
+        public LetterNotificationResponse SendPrecompiledLetter(string clientReference, IEnumerable<byte[]> pdfContentsList, string postage = null)
+        {
+            try
+            {
+                return SendPrecompiledLetterAsync(clientReference, pdfContentsList, postage).Result;
             }
             catch (AggregateException ex)
             {
