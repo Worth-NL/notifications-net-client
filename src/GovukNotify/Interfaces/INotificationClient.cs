@@ -24,8 +24,12 @@ namespace Notify.Interfaces
 
         EmailNotificationResponse SendEmail(string emailAddress, string templateId, Dictionary<string, dynamic> personalisation = null, string clientReference = null, string emailReplyToId = null, string oneClickUnsubscribeURL = null);
 
-        LetterNotificationResponse SendLetter(string templateId, Dictionary<string, dynamic> personalisation, string clientReference = null);
+        LetterNotificationResponse SendLetter(string templateId, Dictionary<string, dynamic> personalisation, string clientReference = null, IEnumerable<string> attachments = null);
+
+        MessageBoxNotificationResponse SendMessageBoxNotification(string recipient, string message, string messageType = null, string subject = null, IEnumerable<Attachment> attachments = null, string reference = null);
 
         LetterNotificationResponse SendPrecompiledLetter(string clientReference, byte[] pdfContents, string postage = null);
+
+        LetterNotificationResponse SendPrecompiledLetter(string clientReference, IEnumerable<byte[]> pdfContentsList, string postage = null);
     }
 }

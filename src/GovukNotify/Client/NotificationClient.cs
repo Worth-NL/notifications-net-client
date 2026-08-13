@@ -7,10 +7,10 @@ using Notify.Models.Responses;
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
-using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace Notify.Client
@@ -23,6 +23,7 @@ namespace Notify.Client
         public string SEND_SMS_NOTIFICATION_URL = "v2/notifications/sms";
         public string SEND_EMAIL_NOTIFICATION_URL = "v2/notifications/email";
         public string SEND_LETTER_NOTIFICATION_URL = "v2/notifications/letter";
+        public string SEND_MESSAGEBOX_NOTIFICATION_URL = "v2/notifications/messagebox";
         public string GET_TEMPLATE_URL = "v2/template/";
         public string GET_ALL_NOTIFICATIONS_URL = "v2/notifications";
         public string GET_ALL_TEMPLATES_URL = "v2/templates";
@@ -177,21 +178,155 @@ namespace Notify.Client
         }
 
         public async Task<LetterNotificationResponse> SendLetterAsync(string templateId, Dictionary<string, dynamic> personalisation,
-            string clientReference = null)
+            string clientReference = null,
+            IEnumerable<string> attachments = null)
         {
+            if (clientReference != null && clientReference.Length > 1000)
+                throw new ArgumentException("Reference must not exceed 1000 characters", nameof(clientReference));
+
+            var attachmentsList = attachments?.ToList();
+
+            if (attachmentsList != null)
+            {
+                if (attachmentsList.Count == 0)
+                    throw new ArgumentException("At least 1 attachment is required when attachments is provided", nameof(attachments));
+
+                if (attachmentsList.Count > 2)
+                    throw new ArgumentException("No more than 2 attachments are allowed", nameof(attachments));
+            }
+
             var o = CreateRequestParams(templateId, personalisation, clientReference);
+
+            if (attachmentsList != null)
+            {
+                var attachmentsArray = new JArray();
+                foreach (var attachment in attachmentsList)
+                {
+                    attachmentsArray.Add(attachment);
+                }
+                o.Add("attachments", attachmentsArray);
+            }
 
             var response = await this.POST(SEND_LETTER_NOTIFICATION_URL, o.ToString(Formatting.None)).ConfigureAwait(false);
 
             return JsonConvert.DeserializeObject<LetterNotificationResponse>(response);
         }
 
+        private static readonly Regex MessageBoxRecipientPattern = new Regex("^[0-9]{9}$", RegexOptions.Compiled);
+
+        public async Task<MessageBoxNotificationResponse> SendMessageBoxNotificationAsync(
+            string recipient,
+            string message,
+            string messageType = null,
+            string subject = null,
+            IEnumerable<Attachment> attachments = null,
+            string reference = null)
+        {
+            if (recipient == null || !MessageBoxRecipientPattern.IsMatch(recipient))
+                throw new ArgumentException("Recipient must be a 9-digit BSN", nameof(recipient));
+
+            if (string.IsNullOrEmpty(message))
+                throw new ArgumentException("Message is required", nameof(message));
+
+            if (message.Length > 4000)
+                throw new ArgumentException("Message must not exceed 4000 characters", nameof(message));
+
+            if (string.IsNullOrEmpty(subject))
+                subject = "Berichtenboxbericht";
+
+            if (subject.Length > 50)
+                throw new ArgumentException("Subject must not exceed 50 characters", nameof(subject));
+
+            var attachmentsList = attachments?.ToList() ?? new List<Attachment>();
+
+            if (attachmentsList.Count > 2)
+                throw new ArgumentException("No more than 2 attachments are allowed", nameof(attachments));
+
+            foreach (var attachment in attachmentsList)
+            {
+                if (string.IsNullOrEmpty(attachment.file))
+                    throw new ArgumentException("Attachment file content is required", nameof(attachments));
+
+                if (string.IsNullOrEmpty(attachment.filename))
+                    throw new ArgumentException("Attachment filename is required", nameof(attachments));
+
+                if (attachment.filename.Length > 128)
+                    throw new ArgumentException("Attachment filename must not exceed 128 characters", nameof(attachments));
+            }
+
+            if (reference != null && reference.Length > 1000)
+                throw new ArgumentException("Reference must not exceed 1000 characters", nameof(reference));
+
+            var attachmentsArray = new JArray();
+            foreach (var att in attachmentsList)
+            {
+                attachmentsArray.Add(JObject.FromObject(att));
+            }
+
+            var requestBody = new JObject
+            {
+                { "recipient", recipient },
+                { "message", message }
+            };
+
+            if (!string.IsNullOrEmpty(messageType))
+                requestBody.Add("message_type", messageType);
+
+            requestBody.Add("subject", subject);
+            requestBody.Add("attachments", attachmentsArray);
+
+            if (!string.IsNullOrEmpty(reference))
+                requestBody.Add("reference", reference);
+
+            var response = await POST(SEND_MESSAGEBOX_NOTIFICATION_URL, requestBody.ToString(Formatting.None)).ConfigureAwait(false);
+
+            return JsonConvert.DeserializeObject<MessageBoxNotificationResponse>(response);
+        }
+
         public async Task<LetterNotificationResponse> SendPrecompiledLetterAsync(string clientReference, byte[] pdfContents, string postage = null)
         {
+            if (string.IsNullOrEmpty(clientReference))
+                throw new ArgumentException("Reference is required", nameof(clientReference));
+
             var requestParams = new JObject
             {
                 {"reference", clientReference},
                 {"content", System.Convert.ToBase64String(pdfContents)}
+            };
+
+            if (postage != null)
+            {
+                requestParams.Add(new JProperty("postage", postage));
+            }
+
+            var response = await this.POST(SEND_LETTER_NOTIFICATION_URL, requestParams.ToString(Formatting.None)).ConfigureAwait(false);
+
+            return JsonConvert.DeserializeObject<LetterNotificationResponse>(response);
+        }
+
+        public async Task<LetterNotificationResponse> SendPrecompiledLetterAsync(string clientReference, IEnumerable<byte[]> pdfContentsList, string postage = null)
+        {
+            if (string.IsNullOrEmpty(clientReference))
+                throw new ArgumentException("Reference is required", nameof(clientReference));
+
+            var contentsList = pdfContentsList?.ToList() ?? new List<byte[]>();
+
+            if (contentsList.Count == 0)
+                throw new ArgumentException("At least 1 PDF content is required", nameof(pdfContentsList));
+
+            if (contentsList.Count > 3)
+                throw new ArgumentException("No more than 3 PDF contents are allowed", nameof(pdfContentsList));
+
+            var contentsArray = new JArray();
+            foreach (var pdf in contentsList)
+            {
+                contentsArray.Add(System.Convert.ToBase64String(pdf));
+            }
+
+            var requestParams = new JObject
+            {
+                {"reference", clientReference},
+                {"contents", contentsArray}
             };
 
             if (postage != null)
@@ -447,7 +582,7 @@ namespace Notify.Client
             }
         }
 
-        public EmailNotificationResponse SendEmail(string emailAddress, string templateId, Dictionary<string, dynamic> personalisation = null, string clientReference = null, string emailReplyToId = null, string oneClickUnsubscribeURL = null)
+        public EmailNotificationResponse SendEmail(string emailAddress, string templateId, Dictionary<string, dynamic> personalisation = null, string clientReference = null, string emailReplyToId = null, string oneClickUnsubscribeURL = null)   // RESTORED
         {
             try
             {
@@ -459,11 +594,31 @@ namespace Notify.Client
             }
         }
 
-        public LetterNotificationResponse SendLetter(string templateId, Dictionary<string, dynamic> personalisation, string clientReference = null)
+        public LetterNotificationResponse SendLetter(string templateId, Dictionary<string, dynamic> personalisation,
+            string clientReference = null,
+            IEnumerable<string> attachments = null)
         {
             try
             {
-                return SendLetterAsync(templateId, personalisation, clientReference).Result;
+                return SendLetterAsync(templateId, personalisation, clientReference, attachments).Result;
+            }
+            catch (AggregateException ex)
+            {
+                throw HandleAggregateException(ex);
+            }
+        }
+
+        public MessageBoxNotificationResponse SendMessageBoxNotification(
+            string recipient,
+            string message,
+            string messageType = null,
+            string subject = null,
+            IEnumerable<Attachment> attachments = null,
+            string reference = null)
+        {
+            try
+            {
+                return SendMessageBoxNotificationAsync(recipient, message, messageType, subject, attachments, reference).Result;
             }
             catch (AggregateException ex)
             {
@@ -476,6 +631,18 @@ namespace Notify.Client
             try
             {
                 return SendPrecompiledLetterAsync(clientReference, pdfContents, postage).Result;
+            }
+            catch (AggregateException ex)
+            {
+                throw HandleAggregateException(ex);
+            }
+        }
+
+        public LetterNotificationResponse SendPrecompiledLetter(string clientReference, IEnumerable<byte[]> pdfContentsList, string postage = null)
+        {
+            try
+            {
+                return SendPrecompiledLetterAsync(clientReference, pdfContentsList, postage).Result;
             }
             catch (AggregateException ex)
             {

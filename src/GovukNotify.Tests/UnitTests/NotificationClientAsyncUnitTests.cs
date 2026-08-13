@@ -5,6 +5,7 @@ using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Notify.Models;
 using Moq;
 using Moq.Protected;
 using Newtonsoft.Json;
@@ -186,7 +187,7 @@ namespace Notify.Tests.UnitTests
             Assert.AreEqual(expectedResponse, responseNotification);
         }
 
-        [Test, Category("Unit"), Category("Unit/NotificationClient")]
+        [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
         public async Task GetPdfForLetterReceivesExpectedResponse()
         {
             var responseAsString = "%PDF-1.5 testpdf";
@@ -224,7 +225,7 @@ namespace Notify.Tests.UnitTests
         [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
         public async Task GenerateTemplatePreviewGeneratesExpectedRequest()
         {
-            Dictionary<string, dynamic> personalisation = new Dictionary<string, dynamic> {
+            var personalisation = new Dictionary<string, dynamic> {
                     { "name", "someone" }
             };
 
@@ -242,7 +243,7 @@ namespace Notify.Tests.UnitTests
         [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
         public async Task GenerateTemplatePreviewReceivesExpectedResponse()
         {
-            Dictionary<string, dynamic> personalisation = new Dictionary<string, dynamic> {
+            var personalisation = new Dictionary<string, dynamic> {
                     { "name", "someone" }
             };
 
@@ -401,7 +402,7 @@ namespace Notify.Tests.UnitTests
         [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
         public async Task SendSmsNotificationGeneratesExpectedRequest()
         {
-            Dictionary<string, dynamic> personalisation = new Dictionary<string, dynamic>
+            var personalisation = new Dictionary<string, dynamic>
                 {
                     { "name", "someone" }
                 };
@@ -422,34 +423,9 @@ namespace Notify.Tests.UnitTests
         }
 
         [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
-        public async Task SendSmsNotificationWithSmsSenderIdGeneratesExpectedRequest()
-        {
-            var personalisation = new Dictionary<string, dynamic>
-                {
-                    { "name", "someone" }
-                };
-            var expected = new JObject
-            {
-                { "phone_number", Constants.fakePhoneNumber },
-                { "template_id", Constants.fakeTemplateId },
-                { "personalisation", JObject.FromObject(personalisation) },
-                { "sms_sender_id", Constants.fakeSMSSenderId }
-            };
-
-            MockRequest(Constants.fakeSmsNotificationWithSMSSenderIdResponseJson,
-                client.SEND_SMS_NOTIFICATION_URL,
-                AssertValidRequest,
-                HttpMethod.Post,
-                AssertGetExpectedContent, expected.ToString(Formatting.None));
-
-            await client.SendSmsAsync(
-                Constants.fakePhoneNumber, Constants.fakeTemplateId, personalisation: personalisation, smsSenderId: Constants.fakeSMSSenderId);
-        }
-
-        [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
         public async Task SendSmsNotificationGeneratesExpectedResponse()
         {
-            Dictionary<string, dynamic> personalisation = new Dictionary<string, dynamic>
+            var personalisation = new Dictionary<string, dynamic>
                 {
                     { "name", "someone" }
                 };
@@ -465,7 +441,7 @@ namespace Notify.Tests.UnitTests
         [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
         public async Task SendEmailNotificationGeneratesExpectedRequest()
         {
-            Dictionary<string, dynamic> personalisation = new Dictionary<string, dynamic>
+            var personalisation = new Dictionary<string, dynamic>
                 {
                     { "name", "someone" }
                 };
@@ -487,9 +463,123 @@ namespace Notify.Tests.UnitTests
         }
 
         [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
+        public async Task SendEmailNotificationWithDocumentGeneratesExpectedRequest()
+        {
+            var personalisation = new Dictionary<string, dynamic>
+                {
+                    { "document", NotificationClient.PrepareUpload(Encoding.UTF8.GetBytes("%PDF-1.5 testpdf")) }
+                };
+            JObject expected = new JObject
+            {
+                { "email_address", Constants.fakeEmail },
+                { "template_id", Constants.fakeTemplateId },
+                { "personalisation", new JObject
+                  {
+                    {"document", new JObject
+                      {
+                        {"file", "JVBERi0xLjUgdGVzdHBkZg=="},
+                        {"filename", null},
+                        {"confirm_email_before_download", null},
+                        {"retention_period", null}
+                      }
+                    }
+                  }
+                },
+                { "reference", Constants.fakeNotificationReference }
+            };
+
+            MockRequest(Constants.fakeTemplatePreviewResponseJson,
+                client.SEND_EMAIL_NOTIFICATION_URL,
+                AssertValidRequest,
+                HttpMethod.Post,
+                AssertGetExpectedContent, expected.ToString(Formatting.None));
+
+            await client.SendEmailAsync(Constants.fakeEmail, Constants.fakeTemplateId, personalisation, Constants.fakeNotificationReference);
+        }
+
+        [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
+        public async Task SendEmailNotificationWithCSVDocumentGeneratesExpectedRequest()
+        {
+            var personalisation = new Dictionary<string, dynamic>
+                {
+                    { "document", NotificationClient.PrepareUpload(Encoding.UTF8.GetBytes("%PDF-1.5 testpdf"), "report.csv") }
+                };
+            JObject expected = new JObject
+            {
+                { "email_address", Constants.fakeEmail },
+                { "template_id", Constants.fakeTemplateId },
+                { "personalisation", new JObject
+                  {
+                    {"document", new JObject
+                      {
+                        {"file", "JVBERi0xLjUgdGVzdHBkZg=="},
+                        {"filename", "report.csv"},
+                        {"confirm_email_before_download", null},
+                        {"retention_period", null}
+                      }
+                    }
+                  }
+                },
+                { "reference", Constants.fakeNotificationReference }
+            };
+
+            MockRequest(Constants.fakeTemplatePreviewResponseJson,
+                client.SEND_EMAIL_NOTIFICATION_URL,
+                AssertValidRequest,
+                HttpMethod.Post,
+                AssertGetExpectedContent, expected.ToString(Formatting.None));
+
+            await client.SendEmailAsync(Constants.fakeEmail, Constants.fakeTemplateId, personalisation, Constants.fakeNotificationReference);
+        }
+
+        [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
+        public async Task SendEmailNotificationCanSetConfirmEmailBeforeDownloadAndRetentionPeriod()
+        {
+            var personalisation = new Dictionary<string, dynamic>
+                {
+                    { "document", NotificationClient.PrepareUpload(Encoding.UTF8.GetBytes("%PDF-1.5 testpdf"), "report.csv", false, "1 weeks") }
+                };
+            JObject expected = new JObject
+            {
+                { "email_address", Constants.fakeEmail },
+                { "template_id", Constants.fakeTemplateId },
+                { "personalisation", new JObject
+                  {
+                    {"document", new JObject
+                      {
+                        {"file", "JVBERi0xLjUgdGVzdHBkZg=="},
+                        {"filename", "report.csv"},
+                        {"confirm_email_before_download", false},
+                        {"retention_period", "1 weeks"}
+                      }
+                    }
+                  }
+                },
+                { "reference", Constants.fakeNotificationReference }
+            };
+
+            MockRequest(Constants.fakeTemplatePreviewResponseJson,
+                client.SEND_EMAIL_NOTIFICATION_URL,
+                AssertValidRequest,
+                HttpMethod.Post,
+                AssertGetExpectedContent, expected.ToString(Formatting.None));
+
+            await client.SendEmailAsync(Constants.fakeEmail, Constants.fakeTemplateId, personalisation, Constants.fakeNotificationReference);
+        }
+
+        [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
+        public void PrepareUploadWithLargeDocumentGeneratesAnError()
+        {
+            Assert.That(
+                    () => { NotificationClient.PrepareUpload(new byte[3 * 1024 * 1024]); },
+                    Throws.ArgumentException
+                    );
+        }
+
+        [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
         public async Task SendEmailNotificationGeneratesExpectedResponse()
         {
-            Dictionary<string, dynamic> personalisation = new Dictionary<string, dynamic>
+            var personalisation = new Dictionary<string, dynamic>
                 {
                     { "name", "someone" }
                 };
@@ -500,7 +590,242 @@ namespace Notify.Tests.UnitTests
             EmailNotificationResponse actualResponse = await client.SendEmailAsync(Constants.fakeEmail, Constants.fakeTemplateId, personalisation, Constants.fakeNotificationReference);
 
             Assert.AreEqual(expectedResponse, actualResponse);
+        }
 
+        [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
+        public async Task SendLetterNotificationGeneratesExpectedRequest()
+        {
+            var personalisation = new Dictionary<string, dynamic>
+                {
+                    { "address_line_1", "Foo" },
+                    { "address_line_2", "Bar" },
+                    { "postcode", "SW1 1AA" }
+                };
+            JObject expected = new JObject
+            {
+                { "template_id", Constants.fakeTemplateId },
+                { "personalisation", JObject.FromObject(personalisation) },
+                { "reference", Constants.fakeNotificationReference }
+            };
+
+            MockRequest(Constants.fakeTemplatePreviewResponseJson,
+                client.SEND_LETTER_NOTIFICATION_URL,
+                AssertValidRequest,
+                HttpMethod.Post,
+                AssertGetExpectedContent, expected.ToString(Formatting.None));
+
+            await client.SendLetterAsync(Constants.fakeTemplateId, personalisation, Constants.fakeNotificationReference);
+        }
+
+        [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
+        public async Task SendLetterNotificationGeneratesExpectedResponse()
+        {
+            var personalisation = new Dictionary<string, dynamic>
+                {
+                    { "address_line_1", "Foo" },
+                    { "address_line_2", "Bar" },
+                    { "postcode", "SW1 1AA" }
+                };
+            LetterNotificationResponse expectedResponse = JsonConvert.DeserializeObject<LetterNotificationResponse>(Constants.fakeLetterNotificationResponseJson);
+
+            MockRequest(Constants.fakeLetterNotificationResponseJson);
+
+            LetterNotificationResponse actualResponse = await client.SendLetterAsync(Constants.fakeTemplateId, personalisation, Constants.fakeNotificationReference);
+
+            Assert.AreEqual(expectedResponse, actualResponse);
+        }
+
+        [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
+        public async Task SendPrecompiledLetterNotificationGeneratesExpectedRequest()
+        {
+            JObject expected = new JObject
+            {
+                { "reference", Constants.fakeNotificationReference },
+                { "content", "JVBERi0xLjUgdGVzdHBkZg==" }
+            };
+
+            MockRequest(Constants.fakeTemplatePreviewResponseJson,
+                client.SEND_LETTER_NOTIFICATION_URL,
+                AssertValidRequest,
+                HttpMethod.Post,
+                AssertGetExpectedContent, expected.ToString(Formatting.None));
+
+            await client.SendPrecompiledLetterAsync(
+                    Constants.fakeNotificationReference,
+                    Encoding.UTF8.GetBytes("%PDF-1.5 testpdf")
+            );
+        }
+
+        [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
+        public async Task SendPrecompiledLetterNotificationGeneratesExpectedResponse()
+        {
+            LetterNotificationResponse expectedResponse = JsonConvert.DeserializeObject<LetterNotificationResponse>(Constants.fakePrecompiledLetterNotificationResponseJson);
+
+            MockRequest(Constants.fakePrecompiledLetterNotificationResponseJson);
+
+            LetterNotificationResponse actualResponse = await client.SendPrecompiledLetterAsync(Constants.fakeNotificationReference, Encoding.UTF8.GetBytes("%PDF-1.5 testpdf"));
+
+            Assert.IsNotNull(expectedResponse.id);
+            Assert.IsNotNull(expectedResponse.reference);
+            Assert.IsNull(expectedResponse.content);
+            Assert.AreEqual(expectedResponse, actualResponse);
+        }
+
+        [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
+        public async Task SendLetterNotificationWithAttachmentsGeneratesExpectedRequest()
+        {
+            var personalisation = new Dictionary<string, dynamic>
+                {
+                    { "address_line_1", "Foo" },
+                    { "address_line_2", "Bar" },
+                    { "postcode", "SW1 1AA" }
+                };
+            var attachments = new List<string> { Constants.fakeFileBase64, Constants.fakeFileBase64 };
+            JObject expected = new JObject
+            {
+                { "template_id", Constants.fakeTemplateId },
+                { "personalisation", JObject.FromObject(personalisation) },
+                { "reference", Constants.fakeNotificationReference },
+                { "attachments", new JArray { Constants.fakeFileBase64, Constants.fakeFileBase64 } }
+            };
+
+            MockRequest(Constants.fakeTemplatePreviewResponseJson,
+                client.SEND_LETTER_NOTIFICATION_URL,
+                AssertValidRequest,
+                HttpMethod.Post,
+                AssertGetExpectedContent, expected.ToString(Formatting.None));
+
+            await client.SendLetterAsync(Constants.fakeTemplateId, personalisation, Constants.fakeNotificationReference, attachments: attachments);
+        }
+
+        [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
+        public async Task SendLetterNotificationOmitsAttachmentsWhenNull()
+        {
+            var personalisation = new Dictionary<string, dynamic>
+                {
+                    { "address_line_1", "Foo" }
+                };
+            JObject expected = new JObject
+            {
+                { "template_id", Constants.fakeTemplateId },
+                { "personalisation", JObject.FromObject(personalisation) },
+                { "reference", Constants.fakeNotificationReference }
+            };
+
+            MockRequest(Constants.fakeTemplatePreviewResponseJson,
+                client.SEND_LETTER_NOTIFICATION_URL,
+                AssertValidRequest,
+                HttpMethod.Post,
+                AssertGetExpectedContent, expected.ToString(Formatting.None));
+
+            await client.SendLetterAsync(Constants.fakeTemplateId, personalisation, Constants.fakeNotificationReference, attachments: null);
+        }
+
+        [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
+        public void SendLetterNotificationAsyncThrowsWhenAttachmentsListIsEmpty()
+        {
+            var personalisation = new Dictionary<string, dynamic> { { "address_line_1", "Foo" } };
+
+            var ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+                await client.SendLetterAsync(Constants.fakeTemplateId, personalisation, Constants.fakeNotificationReference,
+                    attachments: new List<string>())
+            );
+            Assert.That(ex.Message, Does.Contain("At least 1 attachment is required"));
+        }
+
+        [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
+        public void SendLetterNotificationAsyncThrowsWhenMoreThanTwoAttachments()
+        {
+            var personalisation = new Dictionary<string, dynamic> { { "address_line_1", "Foo" } };
+            var attachments = new List<string> { Constants.fakeFileBase64, Constants.fakeFileBase64, Constants.fakeFileBase64 };
+
+            var ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+                await client.SendLetterAsync(Constants.fakeTemplateId, personalisation, Constants.fakeNotificationReference,
+                    attachments: attachments)
+            );
+            Assert.That(ex.Message, Does.Contain("No more than 2 attachments are allowed"));
+        }
+
+        [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
+        public void SendLetterNotificationAsyncThrowsWhenReferenceExceedsMaxLength()
+        {
+            var personalisation = new Dictionary<string, dynamic> { { "address_line_1", "Foo" } };
+            var longReference = new string('x', 1001);
+
+            var ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+                await client.SendLetterAsync(Constants.fakeTemplateId, personalisation, longReference)
+            );
+            Assert.That(ex.Message, Does.Contain("Reference must not exceed 1000 characters"));
+        }
+
+        [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
+        public async Task SendPrecompiledLetterNotificationWithContentsGeneratesExpectedRequest()
+        {
+            var pdfContentsList = new List<byte[]>
+            {
+                Encoding.UTF8.GetBytes("%PDF-1.5 testpdf1"),
+                Encoding.UTF8.GetBytes("%PDF-1.5 testpdf2")
+            };
+            JObject expected = new JObject
+            {
+                { "reference", Constants.fakeNotificationReference },
+                { "contents", new JArray
+                    {
+                        System.Convert.ToBase64String(pdfContentsList[0]),
+                        System.Convert.ToBase64String(pdfContentsList[1])
+                    }
+                }
+            };
+
+            MockRequest(Constants.fakeTemplatePreviewResponseJson,
+                client.SEND_LETTER_NOTIFICATION_URL,
+                AssertValidRequest,
+                HttpMethod.Post,
+                AssertGetExpectedContent, expected.ToString(Formatting.None));
+
+            await client.SendPrecompiledLetterAsync(Constants.fakeNotificationReference, pdfContentsList);
+        }
+
+        [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
+        public void SendPrecompiledLetterNotificationAsyncThrowsWhenContentsListIsEmpty()
+        {
+            var ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+                await client.SendPrecompiledLetterAsync(Constants.fakeNotificationReference, new List<byte[]>())
+            );
+            Assert.That(ex.Message, Does.Contain("At least 1 PDF content is required"));
+        }
+
+        [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
+        public void SendPrecompiledLetterNotificationAsyncThrowsWhenMoreThanThreeContents()
+        {
+            var pdfContentsList = new List<byte[]>
+            {
+                Encoding.UTF8.GetBytes("a"), Encoding.UTF8.GetBytes("b"),
+                Encoding.UTF8.GetBytes("c"), Encoding.UTF8.GetBytes("d")
+            };
+
+            var ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+                await client.SendPrecompiledLetterAsync(Constants.fakeNotificationReference, pdfContentsList)
+            );
+            Assert.That(ex.Message, Does.Contain("No more than 3 PDF contents are allowed"));
+        }
+
+        [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
+        public void SendPrecompiledLetterNotificationAsyncThrowsWhenReferenceIsMissing()
+        {
+            var ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+                await client.SendPrecompiledLetterAsync(null, Encoding.UTF8.GetBytes("%PDF-1.5 testpdf"))
+            );
+            Assert.That(ex.Message, Does.Contain("Reference is required"));
+        }
+
+        [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
+        public void SendPrecompiledLetterNotificationAsyncThrowsWhenReferenceIsMissingForContentsOverload()
+        {
+            var ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+                await client.SendPrecompiledLetterAsync(null, new List<byte[]> { Encoding.UTF8.GetBytes("%PDF-1.5 testpdf") })
+            );
+            Assert.That(ex.Message, Does.Contain("Reference is required"));
         }
 
         [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
@@ -548,7 +873,7 @@ namespace Notify.Tests.UnitTests
         }
 
         [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
-        public async Task SendEmailNotificationWithoneClickUnsubscribeURLGeneratesExpectedRequest()
+        public async Task SendSmsNotificationWithSmsSenderIdGeneratesExpectedRequest()
         {
             var personalisation = new Dictionary<string, dynamic>
                 {
@@ -556,217 +881,336 @@ namespace Notify.Tests.UnitTests
                 };
             var expected = new JObject
             {
-                { "email_address", Constants.fakeEmail },
+                { "phone_number", Constants.fakePhoneNumber },
                 { "template_id", Constants.fakeTemplateId },
                 { "personalisation", JObject.FromObject(personalisation) },
-                { "one_click_unsubscribe_url", Constants.fakeoneClickUnsubscribeURL },
+                { "sms_sender_id", Constants.fakeSMSSenderId }
             };
 
-            MockRequest(
-                Constants.fakeEmailNotificationResponseJson,
-                client.SEND_EMAIL_NOTIFICATION_URL,
+            MockRequest(Constants.fakeSmsNotificationWithSMSSenderIdResponseJson,
+                client.SEND_SMS_NOTIFICATION_URL,
+                AssertValidRequest,
+                HttpMethod.Post,
+                AssertGetExpectedContent, expected.ToString(Formatting.None));
+
+            await client.SendSmsAsync(
+                Constants.fakePhoneNumber, Constants.fakeTemplateId, personalisation: personalisation, smsSenderId: Constants.fakeSMSSenderId);
+        }
+
+        [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
+        public async Task SendMessageBoxNotificationAsyncCreatesExpectedRequest()
+        {
+            var attachments = new List<Attachment>
+            {
+                new Attachment { file = Constants.fakeFileBase64, filename = Constants.fakeFilename }
+            };
+
+            var expectedRequestBody = new JObject
+            {
+                { "recipient", Constants.fakeRecipient },
+                { "message", Constants.fakeMessage },
+                { "message_type", Constants.fakeMessageType },
+                { "subject", Constants.fakeSubject },
+                { "attachments", new JArray
+                    {
+                        new JObject
+                        {
+                            { "file", Constants.fakeFileBase64 },
+                            { "filename", Constants.fakeFilename }
+                        }
+                    }
+                },
+                { "reference", Constants.fakeReference }
+            };
+
+            MockRequest(Constants.fakeMessageBoxNotificationResponseJson,
+                client.SEND_MESSAGEBOX_NOTIFICATION_URL,
                 AssertValidRequest,
                 HttpMethod.Post,
                 AssertGetExpectedContent,
-                expected.ToString(Formatting.None)
-            );
+                expectedRequestBody.ToString(Formatting.None));
 
-            await client.SendEmailAsync(Constants.fakeEmail, Constants.fakeTemplateId, personalisation, oneClickUnsubscribeURL: Constants.fakeoneClickUnsubscribeURL);
+            var response = await client.SendMessageBoxNotificationAsync(
+                Constants.fakeRecipient,
+                Constants.fakeMessage,
+                Constants.fakeMessageType,
+                Constants.fakeSubject,
+                attachments,
+                Constants.fakeReference);
+
+            Assert.IsNotNull(response);
+            Assert.AreEqual("msgbox-12345", response.Id);
+            Assert.AreEqual(Constants.fakeReference, response.Reference);
         }
 
         [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
-        public async Task SendEmailNotificationWithDocumentGeneratesExpectedRequest()
+        public async Task SendMessageBoxNotificationAsyncUsesDefaultSubjectWhenNull()
         {
-            Dictionary<string, dynamic> personalisation = new Dictionary<string, dynamic>
-                {
-                    { "document", NotificationClient.PrepareUpload(Encoding.UTF8.GetBytes("%PDF-1.5 testpdf")) }
-                };
-            JObject expected = new JObject
+            var attachments = new List<Attachment>
             {
-                { "email_address", Constants.fakeEmail },
-                { "template_id", Constants.fakeTemplateId },
-                { "personalisation", new JObject
-                  {
-                    {"document", new JObject
-                      {
-                        {"file", "JVBERi0xLjUgdGVzdHBkZg=="},
-                        {"filename", null},
-                        {"confirm_email_before_download", null},
-                        {"retention_period", null}
-                      }
+                new Attachment { file = Constants.fakeFileBase64, filename = Constants.fakeFilename }
+            };
+
+            var expectedRequestBody = new JObject
+            {
+                { "recipient", Constants.fakeRecipient },
+                { "message", Constants.fakeMessage },
+                { "message_type", Constants.fakeMessageType },
+                { "subject", "Berichtenboxbericht" },
+                { "attachments", new JArray
+                    {
+                        new JObject
+                        {
+                            { "file", Constants.fakeFileBase64 },
+                            { "filename", Constants.fakeFilename }
+                        }
                     }
-                  }
-                },
-                { "reference", Constants.fakeNotificationReference }
+                }
             };
 
-            MockRequest(Constants.fakeTemplatePreviewResponseJson,
-                client.SEND_EMAIL_NOTIFICATION_URL,
+            MockRequest(Constants.fakeMessageBoxNotificationResponseJson,
+                client.SEND_MESSAGEBOX_NOTIFICATION_URL,
                 AssertValidRequest,
                 HttpMethod.Post,
-                AssertGetExpectedContent, expected.ToString(Formatting.None));
+                AssertGetExpectedContent,
+                expectedRequestBody.ToString(Formatting.None));
 
-            await client.SendEmailAsync(Constants.fakeEmail, Constants.fakeTemplateId, personalisation, Constants.fakeNotificationReference);
+            var response = await client.SendMessageBoxNotificationAsync(
+                Constants.fakeRecipient,
+                Constants.fakeMessage,
+                Constants.fakeMessageType,
+                subject: null,
+                attachments: attachments,
+                reference: null);
+
+            Assert.IsNotNull(response);
         }
 
         [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
-        public async Task SendEmailNotificationWithCSVDocumentGeneratesExpectedRequest()
+        public async Task SendMessageBoxNotificationAsyncSucceedsWithNoAttachments()
         {
-            Dictionary<string, dynamic> personalisation = new Dictionary<string, dynamic>
-                {
-                    { "document", NotificationClient.PrepareUpload(Encoding.UTF8.GetBytes("%PDF-1.5 testpdf"), "report.csv") }
-                };
-            JObject expected = new JObject
+            var expectedRequestBody = new JObject
             {
-                { "email_address", Constants.fakeEmail },
-                { "template_id", Constants.fakeTemplateId },
-                { "personalisation", new JObject
-                  {
-                    {"document", new JObject
-                      {
-                        {"file", "JVBERi0xLjUgdGVzdHBkZg=="},
-                        {"filename", "report.csv"},
-                        {"confirm_email_before_download", null},
-                        {"retention_period", null}
-                      }
+                { "recipient", Constants.fakeRecipient },
+                { "message", Constants.fakeMessage },
+                { "message_type", Constants.fakeMessageType },
+                { "subject", Constants.fakeSubject },
+                { "attachments", new JArray() },
+                { "reference", Constants.fakeReference }
+            };
+
+            MockRequest(Constants.fakeMessageBoxNotificationResponseJson,
+                client.SEND_MESSAGEBOX_NOTIFICATION_URL,
+                AssertValidRequest,
+                HttpMethod.Post,
+                AssertGetExpectedContent,
+                expectedRequestBody.ToString(Formatting.None));
+
+            var response = await client.SendMessageBoxNotificationAsync(
+                Constants.fakeRecipient,
+                Constants.fakeMessage,
+                Constants.fakeMessageType,
+                Constants.fakeSubject,
+                attachments: null,
+                reference: Constants.fakeReference);
+
+            Assert.IsNotNull(response);
+        }
+
+        [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
+        public void SendMessageBoxNotificationAsyncThrowsWhenRecipientIsNotANineDigitBsn()
+        {
+            var attachments = new List<Attachment>
+            {
+                new Attachment { file = Constants.fakeFileBase64, filename = Constants.fakeFilename }
+            };
+
+            var ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+                await client.SendMessageBoxNotificationAsync(
+                    "not-a-bsn",
+                    Constants.fakeMessage,
+                    Constants.fakeMessageType,
+                    attachments: attachments
+                ));
+            Assert.That(ex.Message, Does.Contain("Recipient must be a 9-digit BSN"));
+        }
+
+        [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
+        public void SendMessageBoxNotificationAsyncThrowsWhenMessageExceedsMaxLength()
+        {
+            var attachments = new List<Attachment>
+            {
+                new Attachment { file = Constants.fakeFileBase64, filename = Constants.fakeFilename }
+            };
+
+            var ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+                await client.SendMessageBoxNotificationAsync(
+                    Constants.fakeRecipient,
+                    new string('x', 4001),
+                    Constants.fakeMessageType,
+                    attachments: attachments
+                ));
+            Assert.That(ex.Message, Does.Contain("Message must not exceed 4000 characters"));
+        }
+
+        [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
+        public async Task SendMessageBoxNotificationAsyncOmitsMessageTypeWhenNull()
+        {
+            var attachments = new List<Attachment>
+            {
+                new Attachment { file = Constants.fakeFileBase64, filename = Constants.fakeFilename }
+            };
+
+            var expectedRequestBody = new JObject
+            {
+                { "recipient", Constants.fakeRecipient },
+                { "message", Constants.fakeMessage },
+                { "subject", Constants.fakeSubject },
+                { "attachments", new JArray
+                    {
+                        new JObject
+                        {
+                            { "file", Constants.fakeFileBase64 },
+                            { "filename", Constants.fakeFilename }
+                        }
                     }
-                  }
-                },
-                { "reference", Constants.fakeNotificationReference }
+                }
             };
 
-            MockRequest(Constants.fakeTemplatePreviewResponseJson,
-                client.SEND_EMAIL_NOTIFICATION_URL,
+            MockRequest(Constants.fakeMessageBoxNotificationResponseJson,
+                client.SEND_MESSAGEBOX_NOTIFICATION_URL,
                 AssertValidRequest,
                 HttpMethod.Post,
-                AssertGetExpectedContent, expected.ToString(Formatting.None));
+                AssertGetExpectedContent,
+                expectedRequestBody.ToString(Formatting.None));
 
-            await client.SendEmailAsync(Constants.fakeEmail, Constants.fakeTemplateId, personalisation, Constants.fakeNotificationReference);
+            var response = await client.SendMessageBoxNotificationAsync(
+                Constants.fakeRecipient,
+                Constants.fakeMessage,
+                messageType: null,
+                subject: Constants.fakeSubject,
+                attachments: attachments);
+
+            Assert.IsNotNull(response);
         }
 
         [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
-        public async Task SendEmailNotificationCanSetConfirmEmailBeforeDownloadAndRetentionPeriod()
+        public async Task SendMessageBoxNotificationAsyncAcceptsMessageTypeOfAnyLength()
         {
-            Dictionary<string, dynamic> personalisation = new Dictionary<string, dynamic>
-                {
-                    { "document", NotificationClient.PrepareUpload(Encoding.UTF8.GetBytes("%PDF-1.5 testpdf"), "report.csv", false, "1 weeks") }
-                };
-            JObject expected = new JObject
+            var attachments = new List<Attachment>
             {
-                { "email_address", Constants.fakeEmail },
-                { "template_id", Constants.fakeTemplateId },
-                { "personalisation", new JObject
-                  {
-                    {"document", new JObject
-                      {
-                        {"file", "JVBERi0xLjUgdGVzdHBkZg=="},
-                        {"filename", "report.csv"},
-                        {"confirm_email_before_download", false},
-                        {"retention_period", "1 weeks"}
-                      }
+                new Attachment { file = Constants.fakeFileBase64, filename = Constants.fakeFilename }
+            };
+            var longMessageType = new string('x', 50);
+
+            var expectedRequestBody = new JObject
+            {
+                { "recipient", Constants.fakeRecipient },
+                { "message", Constants.fakeMessage },
+                { "message_type", longMessageType },
+                { "subject", Constants.fakeSubject },
+                { "attachments", new JArray
+                    {
+                        new JObject
+                        {
+                            { "file", Constants.fakeFileBase64 },
+                            { "filename", Constants.fakeFilename }
+                        }
                     }
-                  }
-                },
-                { "reference", Constants.fakeNotificationReference }
+                }
             };
 
-            MockRequest(Constants.fakeTemplatePreviewResponseJson,
-                client.SEND_EMAIL_NOTIFICATION_URL,
+            MockRequest(Constants.fakeMessageBoxNotificationResponseJson,
+                client.SEND_MESSAGEBOX_NOTIFICATION_URL,
                 AssertValidRequest,
                 HttpMethod.Post,
-                AssertGetExpectedContent, expected.ToString(Formatting.None));
+                AssertGetExpectedContent,
+                expectedRequestBody.ToString(Formatting.None));
 
-            await client.SendEmailAsync(Constants.fakeEmail, Constants.fakeTemplateId, personalisation, Constants.fakeNotificationReference);
+            var response = await client.SendMessageBoxNotificationAsync(
+                Constants.fakeRecipient,
+                Constants.fakeMessage,
+                longMessageType,
+                subject: Constants.fakeSubject,
+                attachments: attachments);
+
+            Assert.IsNotNull(response);
         }
 
         [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
-        public void PrepareUploadWithLargeDocumentGeneratesAnError()
+        public void SendMessageBoxNotificationAsyncThrowsWhenSubjectExceedsMaxLength()
         {
-            Assert.That(
-                    () => { NotificationClient.PrepareUpload(new byte[3 * 1024 * 1024]); },
-                    Throws.ArgumentException
-                    );
-        }
-
-        [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
-        public async Task SendLetterNotificationGeneratesExpectedRequest()
-        {
-            Dictionary<string, dynamic> personalisation = new Dictionary<string, dynamic>
-                {
-                    { "address_line_1", "Foo" },
-                    { "address_line_2", "Bar" },
-                    { "postcode", "SW1 1AA" }
-                };
-            JObject expected = new JObject
+            var attachments = new List<Attachment>
             {
-                { "template_id", Constants.fakeTemplateId },
-                { "personalisation", JObject.FromObject(personalisation) },
-                { "reference", Constants.fakeNotificationReference }
+                new Attachment { file = Constants.fakeFileBase64, filename = Constants.fakeFilename }
             };
 
-            MockRequest(Constants.fakeTemplatePreviewResponseJson,
-                client.SEND_LETTER_NOTIFICATION_URL,
-                AssertValidRequest,
-                HttpMethod.Post,
-                AssertGetExpectedContent, expected.ToString(Formatting.None));
-
-            await client.SendLetterAsync(Constants.fakeTemplateId, personalisation, Constants.fakeNotificationReference);
+            var ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+                await client.SendMessageBoxNotificationAsync(
+                    Constants.fakeRecipient,
+                    Constants.fakeMessage,
+                    Constants.fakeMessageType,
+                    subject: new string('x', 51),
+                    attachments: attachments
+                ));
+            Assert.That(ex.Message, Does.Contain("Subject must not exceed 50 characters"));
         }
 
         [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
-        public async Task SendLetterNotificationGeneratesExpectedResponse()
+        public void SendMessageBoxNotificationAsyncThrowsWhenMoreThanTwoAttachments()
         {
-            Dictionary<string, dynamic> personalisation = new Dictionary<string, dynamic>
-                {
-                    { "address_line_1", "Foo" },
-                    { "address_line_2", "Bar" },
-                    { "postcode", "SW1 1AA" }
-                };
-            LetterNotificationResponse expectedResponse = JsonConvert.DeserializeObject<LetterNotificationResponse>(Constants.fakeLetterNotificationResponseJson);
-
-            MockRequest(Constants.fakeLetterNotificationResponseJson);
-
-            LetterNotificationResponse actualResponse = await client.SendLetterAsync(Constants.fakeTemplateId, personalisation, Constants.fakeNotificationReference);
-
-            Assert.AreEqual(expectedResponse, actualResponse);
-
-        }
-
-        [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
-        public async Task SendPrecompiledLetterNotificationGeneratesExpectedRequest()
-        {
-            JObject expected = new JObject
+            var attachments = new List<Attachment>
             {
-                { "reference", Constants.fakeNotificationReference },
-                { "content", "JVBERi0xLjUgdGVzdHBkZg==" }
+                new Attachment { file = Constants.fakeFileBase64, filename = Constants.fakeFilename },
+                new Attachment { file = Constants.fakeFileBase64, filename = Constants.fakeFilename },
+                new Attachment { file = Constants.fakeFileBase64, filename = Constants.fakeFilename }
             };
 
-            MockRequest(Constants.fakeTemplatePreviewResponseJson,
-                client.SEND_LETTER_NOTIFICATION_URL,
-                AssertValidRequest,
-                HttpMethod.Post,
-                AssertGetExpectedContent, expected.ToString(Formatting.None));
-
-            await client.SendPrecompiledLetterAsync(
-                    Constants.fakeNotificationReference,
-                    Encoding.UTF8.GetBytes("%PDF-1.5 testpdf")
-            );
+            var ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+                await client.SendMessageBoxNotificationAsync(
+                    Constants.fakeRecipient,
+                    Constants.fakeMessage,
+                    Constants.fakeMessageType,
+                    attachments: attachments
+                ));
+            Assert.That(ex.Message, Does.Contain("No more than 2 attachments are allowed"));
         }
 
         [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
-        public async Task SendPrecompiledLetterNotificationGeneratesExpectedResponse()
+        public void SendMessageBoxNotificationAsyncThrowsWhenAttachmentFilenameExceedsMaxLength()
         {
-            LetterNotificationResponse expectedResponse = JsonConvert.DeserializeObject<LetterNotificationResponse>(Constants.fakePrecompiledLetterNotificationResponseJson);
+            var attachments = new List<Attachment>
+            {
+                new Attachment { file = Constants.fakeFileBase64, filename = new string('x', 129) }
+            };
 
-            MockRequest(Constants.fakePrecompiledLetterNotificationResponseJson);
+            var ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+                await client.SendMessageBoxNotificationAsync(
+                    Constants.fakeRecipient,
+                    Constants.fakeMessage,
+                    Constants.fakeMessageType,
+                    attachments: attachments
+                ));
+            Assert.That(ex.Message, Does.Contain("Attachment filename must not exceed 128 characters"));
+        }
 
-            LetterNotificationResponse actualResponse = await client.SendPrecompiledLetterAsync(Constants.fakeNotificationReference, Encoding.UTF8.GetBytes("%PDF-1.5 testpdf"));
+        [Test, Category("Unit"), Category("Unit/NotificationClientAsync")]
+        public void SendMessageBoxNotificationAsyncThrowsWhenReferenceExceedsMaxLength()
+        {
+            var attachments = new List<Attachment>
+            {
+                new Attachment { file = Constants.fakeFileBase64, filename = Constants.fakeFilename }
+            };
 
-            Assert.IsNotNull(expectedResponse.id);
-            Assert.IsNotNull(expectedResponse.reference);
-            Assert.IsNull(expectedResponse.content);
-            Assert.AreEqual(expectedResponse, actualResponse);
-
+            var ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+                await client.SendMessageBoxNotificationAsync(
+                    Constants.fakeRecipient,
+                    Constants.fakeMessage,
+                    Constants.fakeMessageType,
+                    attachments: attachments,
+                    reference: new string('x', 1001)
+                ));
+            Assert.That(ex.Message, Does.Contain("Reference must not exceed 1000 characters"));
         }
 
         private static void AssertGetExpectedContent(string expected, string content)
@@ -817,7 +1261,6 @@ namespace Notify.Tests.UnitTests
 
         private void MockRequest(string content)
         {
-
             handler.Protected()
                 .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
                 .Returns(Task<HttpResponseMessage>.Factory.StartNew(() => new HttpResponseMessage

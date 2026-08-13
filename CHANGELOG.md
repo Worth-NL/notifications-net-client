@@ -1,3 +1,37 @@
+## [9.4.0-custom] - 2026-08-13
+
+* `SendLetter`/`SendLetterAsync` now accept an optional `attachments` parameter (1 to 2 base64-encoded strings), sent as `attachments` in the request body, per the updated `POST v2/notifications/letter` (template) schema
+* `reference` on `SendLetter`/`SendLetterAsync` must not exceed 1000 characters, per the same schema
+* Removed `extras` and `senderOrganisation` from `SendLetter`/`SendLetterAsync` — the same schema has `additionalProperties: false` and no longer lists either as allowed, so requests using them would be rejected by NotifyNL
+* Added `SendPrecompiledLetter`/`SendPrecompiledLetterAsync` overloads accepting `IEnumerable<byte[]>` (1 to 3 PDFs), sent as `contents` in the request body — an alternative to the existing single-PDF `content` overload, per the updated `POST v2/notifications/letter` (precompiled) schema
+* `reference` is now required (and validated) on both `SendPrecompiledLetter`/`SendPrecompiledLetterAsync` overloads, per the same schema
+
+## [9.2.0-custom] - 2026-08-05
+
+* `messageType` on `SendMessageBoxNotification`/`SendMessageBoxNotificationAsync` is now optional (was required) and no longer has a length limit (was max 8 characters), per the updated `POST v2/notifications/messagebox` schema
+* When `messageType` is null or empty, `message_type` is omitted from the request body entirely instead of being sent as an empty string
+
+## [9.1.0-custom] - 2026-08-03
+
+* `SendMessageBoxNotification`/`SendMessageBoxNotificationAsync` now accept 0 to 2 attachments (previously 1 to 2 - at least one was required)
+* Added a required `messageType` parameter to `SendMessageBoxNotification`/`SendMessageBoxNotificationAsync`, sent as `message_type` in the request body; must not exceed 8 characters
+
+## [9.0.2-custom] - 2026-07-27
+
+* Fixed the messagebox notification endpoint to use `v2/notifications/messagebox` (was incorrectly posting to `v2/notifications/message`)
+* Removed the `sender` parameter from `SendMessageBoxNotification`/`SendMessageBoxNotificationAsync` to match the current NotifyNL messagebox schema
+* Added request validation for `SendMessageBoxNotification`/`SendMessageBoxNotificationAsync`:
+  * `recipient` must be a 9-digit BSN
+  * `message` must not exceed 4000 characters
+  * `subject` must not exceed 50 characters
+  * between 1 and 2 attachments are required, each with a `filename` of at most 128 characters
+  * `reference` must not exceed 1000 characters
+
+## [8.0.1-custom] - 2026-06-8
+
+* Added parameters to SendLetter for "extras"
+* Added support for "message" endpoint
+
 ## [8.0.0] - 2026-03-19
 
 * Updates versions of JWT and Newtonsoft.JSON dependencies
